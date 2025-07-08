@@ -170,33 +170,28 @@ export function PitchBuilder() {
       
       addMessage('bot', "Great! I've analyzed your website and researched your product. Here's what I found:");
     } catch (error) {
-      // Fallback to mock data for demo purposes
-      const mockProductInfo: ProductInfo = {
+      // If analysis fails, create empty template
+      const emptyProductInfo: ProductInfo = {
         website: websiteUrl,
-        productName: "AI Sales Assistant",
-        coreProblem: "Sales teams struggle to create personalized, effective pitch strategies quickly and consistently",
-        keyFeatures: [
-          "Automated pitch generation",
-          "Customer insight analysis", 
-          "Multi-channel outreach templates",
-          "Performance tracking and optimization"
-        ],
-        differentiators: "Uses advanced AI to analyze customer data and generate personalized pitches in seconds, not hours",
-        successStories: "Increased conversion rates by 45% for tech companies, reduced pitch prep time by 80%",
-        idealCustomer: "Sales directors and managers at B2B companies with 50-500 employees",
-        customerChallenges: "Time-consuming pitch preparation, inconsistent messaging across team, difficulty personalizing at scale",
-        productSolution: "Automates pitch creation with AI-driven personalization based to prospect data and industry insights",
-        objections: "Concerns about AI replacing human touch, integration complexity, ROI timeline"
+        productName: "No information found",
+        coreProblem: "No information found",
+        keyFeatures: [],
+        differentiators: "No information found",
+        successStories: "No information found",
+        idealCustomer: "No information found",
+        customerChallenges: "No information found",
+        productSolution: "No information found",
+        objections: "No information found"
       };
 
-      setProductInfo(mockProductInfo);
-      setEditingInfo(mockProductInfo);
+      setProductInfo(emptyProductInfo);
+      setEditingInfo(emptyProductInfo);
       setStep('review');
       setIsLoading(false);
       setUserInput('');
       setUploadedFile(null);
       
-      addMessage('bot', "I've created a template based on your website. Please review and edit the information:");
+      addMessage('bot', "I couldn't extract information from the website. Please fill in the template below:");
     }
   };
 

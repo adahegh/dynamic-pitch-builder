@@ -50,7 +50,9 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert sales strategist analyzing a company's website to extract key product and audience information. Based on the website content provided, extract and infer the following information in JSON format:
+            content: `You are an expert sales strategist analyzing a company's website to extract key product and audience information. Based on the website content provided, extract ONLY the information that is explicitly available in the content. Do not make inferences or assumptions.
+
+Return the information in JSON format:
 
 {
   "productName": "Name of the main product/service",
@@ -64,7 +66,7 @@ serve(async (req) => {
   "objections": "What likely objections or hesitations might they have?"
 }
 
-If you cannot find specific information, make reasonable inferences based on the industry and product type, but keep them realistic and relevant.`
+IMPORTANT: If specific information is not explicitly found in the website content, return "No information found" for that field. Do not make inferences or assumptions.`
           },
           {
             role: 'user',
