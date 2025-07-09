@@ -1,1 +1,7 @@
 project_id = "vjcecvadjbeiolcqsyof"
+
+[functions.analyze-website]
+verify_jwt = false
+
+[functions.process-feedback]
+verify_jwt = false
