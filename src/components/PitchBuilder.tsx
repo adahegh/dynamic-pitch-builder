@@ -246,31 +246,36 @@ export function PitchBuilder() {
     generatePitchStrategy();
   };
 
-  const generatePitchStrategy = () => {
-    setIsLoading(true);
-    addMessage('bot', "Perfect! Now I'll generate your personalized pitch strategy...");
+  const generatePitchStrategy = async () => {
+    if (!productInfo) return;
     
-    setTimeout(() => {
-      const strategy: PitchStrategy = {
-        talkTracks: [
-          "Hi [Name], I noticed your team at [Company] is in the [Industry] space. I'm reaching out because many sales leaders like yourself are struggling with creating personalized pitches at scale. Our AI Sales Assistant has helped similar companies increase their conversion rates by 45% while cutting pitch prep time by 80%. Would you be open to a quick 15-minute conversation about how this could impact your team's performance?",
-          "I was researching [Company] and saw you're focused on [specific goal/challenge]. This caught my attention because we've been working with other [Industry] companies who faced similar challenges around pitch personalization and team consistency. Our AI-powered solution has enabled teams like yours to generate highly personalized pitches in seconds rather than hours. I'd love to share a quick case study of how [Similar Company] achieved a 45% boost in conversions - do you have 10 minutes this week?"
-        ],
-        talkingPoints: [
-          "45% average increase in conversion rates for B2B tech companies",
-          "80% reduction in pitch preparation time through AI automation",
-          "Ensures consistent messaging across entire sales team",
-          "Integrates with existing CRM and sales tools seamlessly",
-          "Provides real-time performance analytics and optimization suggestions",
-          "Scales personalization efforts without sacrificing quality or human touch"
-        ]
-      };
-      
+    setIsLoading(true);
+    addMessage('bot', "Perfect! Now I'll generate your personalized pitch strategy based on your product information...");
+    
+    try {
+      const response = await fetch('https://vjcecvadjbeiolcqsyof.supabase.co/functions/v1/generate-pitch-strategy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY2VjdmFkamJlaW9sY3FzeW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMDY2MjcsImV4cCI6MjA2NzU4MjYyN30.lpyOBQqgYxzaqnFRzaR1ZoZsuusTJDC9tcbKb4IR24I`,
+        },
+        body: JSON.stringify({ productInfo }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate pitch strategy');
+      }
+
+      const strategy = await response.json();
       setPitchStrategy(strategy);
       setStep('complete');
       setIsLoading(false);
-      addMessage('bot', "Your personalized pitch strategy is ready! Here are your custom talk tracks and key talking points:");
-    }, 2000);
+      addMessage('bot', "Your personalized pitch strategy is ready! Here are your custom talk tracks and key talking points based on your product information:");
+    } catch (error) {
+      console.error('Error generating pitch strategy:', error);
+      setIsLoading(false);
+      addMessage('bot', "I had trouble generating your pitch strategy. Please try again.");
+    }
   };
 
   const downloadStrategy = () => {
