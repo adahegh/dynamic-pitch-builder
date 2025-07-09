@@ -24,9 +24,19 @@ export interface ProductInfo {
   objections: string;
 }
 
+export interface ObjectionHandling {
+  objection: string;
+  strategy: string;
+  talkTracks: string[];
+}
+
 export interface PitchStrategy {
   talkTracks: string[];
   talkingPoints: string[];
+}
+
+export interface ObjectionHandlingResponse {
+  objectionHandling: ObjectionHandling[];
 }
 
 interface Message {
@@ -36,7 +46,7 @@ interface Message {
   timestamp: Date;
 }
 
-type Step = 'input' | 'processing' | 'review' | 'edit' | 'generate' | 'strategy' | 'edit-strategy' | 'complete';
+type Step = 'input' | 'processing' | 'review' | 'edit' | 'generate' | 'strategy' | 'edit-strategy' | 'objections' | 'edit-objections' | 'complete';
 
 export function PitchBuilder() {
   const [step, setStep] = useState<Step>('input');
@@ -54,9 +64,12 @@ export function PitchBuilder() {
   const [editingInfo, setEditingInfo] = useState<ProductInfo | null>(null);
   const [pitchStrategy, setPitchStrategy] = useState<PitchStrategy | null>(null);
   const [editingStrategy, setEditingStrategy] = useState<PitchStrategy | null>(null);
+  const [objectionHandling, setObjectionHandling] = useState<ObjectionHandling[] | null>(null);
+  const [editingObjections, setEditingObjections] = useState<ObjectionHandling[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [feedbackInput, setFeedbackInput] = useState('');
   const [strategyFeedbackInput, setStrategyFeedbackInput] = useState('');
+  const [objectionsFeedbackInput, setObjectionsFeedbackInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -325,6 +338,88 @@ export function PitchBuilder() {
     }
   };
 
+  const generateObjectionHandling = async () => {
+    if (!pitchStrategy || !productInfo) return;
+    
+    setIsLoading(true);
+    setStep('objections');
+    addMessage('user', "Strategy confirmed - generating objection handling tactics");
+    addMessage('bot', "Excellent! Now I'll generate comprehensive objection handling tactics using GPT-4o...");
+    
+    try {
+      const response = await fetch('https://vjcecvadjbeiolcqsyof.supabase.co/functions/v1/generate-objection-handling', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY2VjdmFkamJlaW9sY3FzeW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMDY2MjcsImV4cCI6MjA2NzU4MjYyN30.lpyOBQqgYxzaqnFRzaR1ZoZsuusTJDC9tcbKb4IR24I`,
+        },
+        body: JSON.stringify({ 
+          productInfo,
+          pitchStrategy 
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate objection handling');
+      }
+
+      const data = await response.json();
+      setObjectionHandling(data.objectionHandling);
+      setEditingObjections(data.objectionHandling);
+      setIsLoading(false);
+      addMessage('bot', "Your objection handling tactics are ready! Review them above and provide feedback below to make any improvements:");
+    } catch (error) {
+      console.error('Error generating objection handling:', error);
+      setIsLoading(false);
+      addMessage('bot', "I had trouble generating objection handling tactics. Please try again.");
+    }
+  };
+
+  const handleObjectionsFeedbackSubmit = async () => {
+    if (!objectionsFeedbackInput.trim() || !objectionHandling || !productInfo) {
+      toast.error("Please enter your feedback.");
+      return;
+    }
+
+    setIsLoading(true);
+    const feedbackMessage = objectionsFeedbackInput;
+    setObjectionsFeedbackInput('');
+    
+    addMessage('user', feedbackMessage);
+    addMessage('bot', "Processing your feedback and improving the objection handling tactics...");
+    
+    try {
+      const response = await fetch('https://vjcecvadjbeiolcqsyof.supabase.co/functions/v1/improve-objection-handling', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY2VjdmFkamJlaW9sY3FzeW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMDY2MjcsImV4cCI6MjA2NzU4MjYyN30.lpyOBQqgYxzaqnFRzaR1ZoZsuusTJDC9tcbKb4IR24I`,
+        },
+        body: JSON.stringify({ 
+          feedback: feedbackMessage, 
+          currentObjectionHandling: objectionHandling,
+          productInfo: productInfo,
+          pitchStrategy: pitchStrategy
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to improve objection handling');
+      }
+
+      const improvedObjections = await response.json();
+      setObjectionHandling(improvedObjections.objectionHandling);
+      setEditingObjections(improvedObjections.objectionHandling);
+      setIsLoading(false);
+      
+      addMessage('bot', "Perfect! I've improved the objection handling tactics based on your feedback. You can see the changes reflected above.");
+    } catch (error) {
+      console.error('Error improving objection handling:', error);
+      setIsLoading(false);
+      addMessage('bot', "I had trouble processing your feedback. Please try again.");
+    }
+  };
+
   const downloadStrategy = () => {
     if (!pitchStrategy || !productInfo) return;
     
@@ -415,6 +510,64 @@ Generated by Dynamic Pitch Builder
             </div>
           )}
 
+          {/* Left side - Objection Handling Display (when in objections step) */}
+          {step === 'objections' && objectionHandling && (
+            <div className="w-1/2 flex flex-col">
+              <div className="bg-green-50 p-6 rounded-lg border flex-1 overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-green-800 text-lg">Objection Handling Tactics</h3>
+                  <Button onClick={() => setStep('complete')} className="bg-green-600 hover:bg-green-700">
+                    <Check className="w-4 h-4 mr-2" />
+                    Complete
+                  </Button>
+                </div>
+                
+                <div className="space-y-4">
+                  {objectionHandling.map((objection, index) => (
+                    <Card key={index} className="p-4 bg-white">
+                      <div className="space-y-3">
+                        <div>
+                          <Badge variant="outline" className="text-green-600 border-green-300 mb-2">
+                            Objection {index + 1}
+                          </Badge>
+                          <h4 className="font-semibold text-gray-800">{objection.objection}</h4>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-medium text-purple-700 mb-1">Handling Strategy:</h5>
+                          <p className="text-gray-700 text-sm">{objection.strategy}</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-medium text-blue-700 mb-2">Example Talk Tracks:</h5>
+                          <ul className="space-y-1">
+                            {objection.talkTracks.map((track, trackIndex) => (
+                              <li key={trackIndex} className="flex items-start text-sm">
+                                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                                <span className="text-gray-700">{track}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 mt-6">
+                  <Button onClick={() => setStep('complete')} className="bg-green-600 hover:bg-green-700">
+                    <Check className="w-4 h-4 mr-2" />
+                    Complete Strategy
+                  </Button>
+                  <Button variant="outline" onClick={() => setStep('edit-objections')}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit Directly
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Left side - Pitch Strategy Display (when in strategy step) */}
           {step === 'strategy' && pitchStrategy && (
             <div className="w-1/2 flex flex-col">
@@ -463,7 +616,7 @@ Generated by Dynamic Pitch Builder
                 </div>
 
                 <div className="flex gap-2 mt-6">
-                  <Button onClick={() => setStep('complete')} className="bg-green-600 hover:bg-green-700">
+                  <Button onClick={generateObjectionHandling} className="bg-green-600 hover:bg-green-700">
                     <Check className="w-4 h-4 mr-2" />
                     Finalize Strategy
                   </Button>
@@ -477,7 +630,7 @@ Generated by Dynamic Pitch Builder
           )}
 
           {/* Right side - Chat Interface */}
-          <Card className={`${(step === 'review' || step === 'strategy' || step === 'edit-strategy') ? 'w-1/2' : 'w-full'} flex flex-col shadow-lg`}>
+          <Card className={`${(step === 'review' || step === 'strategy' || step === 'edit-strategy' || step === 'objections' || step === 'edit-objections') ? 'w-1/2' : 'w-full'} flex flex-col shadow-lg`}>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.map((message) => (
                 <ChatMessage key={message.id} message={message} />
@@ -664,6 +817,73 @@ Generated by Dynamic Pitch Builder
                 </div>
               )}
 
+              {step === 'edit-objections' && editingObjections && (
+                <div className="bg-green-50 p-6 rounded-lg border animate-fade-in">
+                  <h3 className="font-semibold mb-4 text-green-800 text-lg">Edit Objection Handling Tactics</h3>
+                  
+                  <div className="grid gap-6">
+                    {editingObjections.map((objection, index) => (
+                      <div key={index} className="bg-white p-4 rounded-lg border">
+                        <h4 className="font-semibold text-green-700 mb-3">Objection {index + 1}</h4>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Objection:</label>
+                            <Input
+                              value={objection.objection}
+                              onChange={(e) => {
+                                const newObjections = [...editingObjections];
+                                newObjections[index] = {...newObjections[index], objection: e.target.value};
+                                setEditingObjections(newObjections);
+                              }}
+                              placeholder="Enter the objection"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Handling Strategy:</label>
+                            <Textarea
+                              value={objection.strategy}
+                              onChange={(e) => {
+                                const newObjections = [...editingObjections];
+                                newObjections[index] = {...newObjections[index], strategy: e.target.value};
+                                setEditingObjections(newObjections);
+                              }}
+                              placeholder="Acknowledge → Reframe → Next Step"
+                              rows={2}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Talk Tracks (one per line):</label>
+                            <Textarea
+                              value={objection.talkTracks.join('\n')}
+                              onChange={(e) => {
+                                const newObjections = [...editingObjections];
+                                newObjections[index] = {
+                                  ...newObjections[index], 
+                                  talkTracks: e.target.value.split('\n').filter(track => track.trim())
+                                };
+                                setEditingObjections(newObjections);
+                              }}
+                              placeholder="Enter talk tracks, one per line"
+                              rows={4}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2 mt-6">
+                    <Button onClick={() => { setObjectionHandling(editingObjections); setStep('objections'); }} className="bg-green-600 hover:bg-green-700">
+                      <Check className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </Button>
+                    <Button variant="outline" onClick={() => setStep('objections')}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {step === 'complete' && pitchStrategy && (
                 <PitchDisplay strategy={pitchStrategy} onDownload={downloadStrategy} />
               )}
@@ -743,6 +963,28 @@ Generated by Dynamic Pitch Builder
                     onClick={handleStrategyFeedbackSubmit} 
                     disabled={!strategyFeedbackInput.trim() || isLoading}
                     className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Improve
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {step === 'objections' && (
+              <div className="border-t p-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Tell me how to improve the objection handling tactics..."
+                    value={objectionsFeedbackInput}
+                    onChange={(e) => setObjectionsFeedbackInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleObjectionsFeedbackSubmit()}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleObjectionsFeedbackSubmit} 
+                    disabled={!objectionsFeedbackInput.trim() || isLoading}
+                    className="bg-green-600 hover:bg-green-700"
                   >
                     <Send className="w-4 h-4 mr-2" />
                     Improve
