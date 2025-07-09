@@ -77,13 +77,34 @@ IMPORTANT:
     const data = await response.json();
     const updatedInfoText = data.choices[0].message.content;
     
+    console.log('Raw OpenAI response:', updatedInfoText);
+    
     try {
-      const updatedInfo = JSON.parse(updatedInfoText);
+      // Clean the response to extract JSON if it's wrapped in markdown or has extra text
+      let cleanedResponse = updatedInfoText.trim();
+      
+      // Remove markdown code blocks if present
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      // Try to find JSON object in the response
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedResponse = jsonMatch[0];
+      }
+      
+      console.log('Cleaned response:', cleanedResponse);
+      
+      const updatedInfo = JSON.parse(cleanedResponse);
       return new Response(JSON.stringify(updatedInfo), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (parseError) {
       console.error('Failed to parse OpenAI response as JSON:', parseError);
+      console.error('Original response:', updatedInfoText);
       throw new Error('Invalid response format from AI processing');
     }
 
