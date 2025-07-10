@@ -5,3 +5,15 @@ verify_jwt = false
 
 [functions.process-feedback]
 verify_jwt = false
+
+[functions.generate-pitch-strategy]
+verify_jwt = false
+
+[functions.improve-pitch-strategy]
+verify_jwt = false
+
+[functions.generate-objection-handling]
+verify_jwt = false
+
+[functions.generate-email-cadence]
+verify_jwt = false
