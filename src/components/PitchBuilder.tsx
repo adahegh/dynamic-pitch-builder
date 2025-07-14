@@ -161,7 +161,9 @@ export function PitchBuilder() {
 
   const saveSystemPrompts = () => {
     setSystemPrompts(editingPrompts);
-    toast.success("System prompts updated successfully!");
+    // Update the default prompts to make the current prompts the new defaults
+    Object.assign(DEFAULT_SYSTEM_PROMPTS, editingPrompts);
+    toast.success("System prompts saved as new defaults!");
   };
 
   const resetSystemPrompts = () => {
