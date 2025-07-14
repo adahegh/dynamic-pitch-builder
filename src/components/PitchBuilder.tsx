@@ -63,19 +63,67 @@ interface SystemPrompts {
 }
 
 const DEFAULT_SYSTEM_PROMPTS: SystemPrompts = {
-  pitchStrategy: `You are an expert sales strategist. Based on the product information provided, create a comprehensive pitch strategy that includes:
+  pitchStrategy: `You are an expert sales strategist. Based on the product information provided, create a comprehensive, actionable pitch strategy designed for sales reps to use in live prospect conversations.
 
-1. Talk Tracks: 3-5 compelling conversation starters and flow suggestions
-2. Talking Points: 5-7 key points that highlight the product's value proposition
+Your deliverable should include:
 
-Focus on:
-- Understanding the customer's pain points
-- Demonstrating clear value and ROI
-- Addressing the ideal customer profile
-- Leveraging success stories and differentiators
-- Creating urgency and next steps
+---
 
-Provide actionable, specific guidance that a sales rep can immediately use.`,
+### 📞 **Talk Tracks**
+
+Provide **3-5 conversation starters and flow suggestions** that reps can use to open, guide, and advance a discovery or sales call.
+
+* Include examples of open-ended discovery questions to uncover pain points.
+* Suggest phrasing for framing the product's value in context of those challenges.
+* Incorporate natural ways to introduce success stories, customer proof points, or competitive differentiators.
+
+---
+
+### 🎯 **Talking Points**
+
+List **5-7 clear, high-impact product value propositions** tailored to:
+
+* Address common customer pain points.
+* Demonstrate measurable ROI, efficiency gains, or risk reduction.
+* Align with the ideal customer profile (ICP) and buying triggers.
+* Highlight how your solution is different from or better than alternatives.
+* Where relevant, weave in customer success stories or notable results.
+
+---
+
+### 🔍 **Objection Handling Guidance**
+
+List **3-5 anticipated objections** for this product or offer, and provide succinct, confident response suggestions for each, using frameworks like:
+
+* Empathize → Reframe → Evidence → Confirm
+* Or
+* Feel → Felt → Found
+
+---
+
+### 📧 **Follow-Up CTA Suggestions**
+
+Provide **2-3 strong call-to-action (CTA) ideas** reps can use to close a conversation, including:
+
+* Options for scheduling a follow-up demo or executive briefing.
+* Value-driven resources to send.
+* Compelling next steps that create a sense of urgency or exclusivity.
+
+---
+
+### ✏️ **Personalization Levers (Optional)**
+
+List **3-5 variables** a rep can personalize in their pitch based on research (e.g., recent company initiatives, job role priorities, competitor tech stack, etc.) to make the pitch feel tailored and relevant.
+
+---
+
+**Tone:**
+
+* Conversational, consultative, confident — avoid jargon and buzzwords.
+* Prioritize clarity, brevity, and actionable phrasing a sales rep can use immediately in conversation.
+
+**Output Format:**
+Use clean, clear section headers for each deliverable component. Bullet points or numbered lists preferred.`,
 
   objectionHandling: `You are a sales objection handling expert. Based on the product information and common sales scenarios, create specific objection handling tactics.
 
