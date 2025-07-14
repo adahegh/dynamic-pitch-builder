@@ -476,17 +476,7 @@ export function PitchBuilder() {
   };
 
   const PromptStrengthIndicator = ({ strength, fieldKey }: { strength: number; fieldKey: string }) => (
-    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 animate-fade-in ${getStrengthColor(strength)}`}>
-      <div className="flex items-center gap-1">
-        <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-          <div 
-            className={`h-full transition-all duration-500 ${strength >= 80 ? 'bg-green-500' : strength >= 60 ? 'bg-yellow-500' : strength >= 40 ? 'bg-orange-500' : 'bg-red-500'}`}
-            style={{ width: `${strength}%` }}
-          />
-        </div>
-        <span>{getStrengthLabel(strength)}</span>
-      </div>
-    </div>
+    <></>
   );
 
   const handleFileUpload = (file: File) => {
