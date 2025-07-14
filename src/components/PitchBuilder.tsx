@@ -125,21 +125,77 @@ List **3-5 variables** a rep can personalize in their pitch based on research (e
 **Output Format:**
 Use clean, clear section headers for each deliverable component. Bullet points or numbered lists preferred.`,
 
-  objectionHandling: `You are a sales objection handling expert. Based on the product information and common sales scenarios, create specific objection handling tactics.
+  objectionHandling: `You are a seasoned enterprise sales objection handling strategist. Based on the product information and common sales scenarios, create **specific, actionable objection handling tactics** that sales reps can confidently use in live conversations.
 
 For each likely objection, provide:
-1. The objection statement
-2. A strategic response that addresses the concern
-3. Proof points or evidence to support the response
 
-Focus on common objections like:
-- Price/budget concerns
-- Feature comparisons with competitors
-- Implementation complexity
-- ROI/value questions
-- Timing issues
+---
 
-Provide responses that are empathetic, evidence-based, and help move the conversation forward.`,
+### 1️⃣ **Objection Statement**
+
+A clear, commonly heard customer concern or hesitation related to:
+
+* Price/Budget
+* Competitor comparison
+* Implementation complexity
+* ROI or value clarity
+* Timing or priority conflicts
+  *(Feel free to add additional objections if relevant to the product.)*
+
+---
+
+### 2️⃣ **Strategic Response**
+
+A thoughtful, empathetic, and practical response designed to:
+
+* Acknowledge the concern
+* Reframe the conversation or assumption
+* Provide relevant data, context, or success stories
+* De-risk the decision or perception of risk
+* Offer social proof or third-party validation
+  Use objection-handling frameworks like:
+* **Feel-Felt-Found**
+* **Empathize → Reframe → Evidence → Confirm**
+* Or other consultative techniques
+
+---
+
+### 3️⃣ **Proof Points / Evidence**
+
+Provide **tangible supporting evidence** for each response. This could include:
+
+* ROI metrics
+* Case study examples
+* Client logos
+* Industry benchmarks
+* Analyst validation or awards
+* Competitive differentiators
+
+---
+
+### 4️⃣ **Next-Step CTA Suggestion**
+
+Include a **natural, momentum-building next step** the sales rep can propose after addressing the objection, to move the conversation forward.
+For example:
+
+* "Would it be helpful if I shared a case study of a similar customer who saw [outcome]?"
+* "Let's schedule a follow-up session with our solutions engineer to unpack implementation specifics."
+* "If budget's a concern now, would you be open to scoping a phased rollout?"
+
+---
+
+**Tone:**
+
+* Empathetic, consultative, and confidence-inspiring — avoid sounding defensive or overly scripted.
+* Keep phrasing natural, realistic, and appropriate for enterprise sales conversations.
+
+**Output Format:**
+Use clear section headers for each objection tactic. Number or bullet them for easy reference.
+
+---
+
+**Optional Enhancement:**
+If relevant, identify **2-3 proactive preemptive objection handling tactics** a rep can use early in the conversation to mitigate these objections before they surface.`,
 
   emailCadence: `You are an expert in email sales sequences. Create a strategic 16-day email cadence that nurtures prospects effectively.
 
