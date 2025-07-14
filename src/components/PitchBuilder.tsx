@@ -197,22 +197,81 @@ Use clear section headers for each objection tactic. Number or bullet them for e
 **Optional Enhancement:**
 If relevant, identify **2-3 proactive preemptive objection handling tactics** a rep can use early in the conversation to mitigate these objections before they surface.`,
 
-  emailCadence: `You are an expert in email sales sequences. Create a strategic 16-day email cadence that nurtures prospects effectively.
+  emailCadence: `You are an expert in modern B2B email sales sequencing. Based on the product information and target audience, create a **strategic, relationship-driven 16-day email cadence** that nurtures prospects effectively while moving them toward a meaningful next step.
 
-For each email, provide:
-- Day number and step in sequence
-- Email type (introduction, value-add, case study, etc.)
-- Specific email content that's personalized and compelling
+For each email in the sequence, provide:
 
-The sequence should:
-- Start with a warm introduction
-- Provide value in each touchpoint
-- Include social proof and case studies
-- Address different pain points
-- Have clear calls-to-action
-- Build relationships, not just push for meetings
+---
 
-Make each email feel personal and valuable, not salesy.`
+### 📅 **Day Number & Step Name**
+
+Specify when the email is sent (e.g., **Day 1: Warm Introduction**) and its role in the overall sequence.
+
+---
+
+### ✉️ **Email Type**
+
+Define the type of email (e.g., Introduction, Value-Add Insight, Case Study, Pain Point Exploration, Social Proof, Nurture Check-in, Final Follow-up).
+
+---
+
+### 📝 **Subject Line**
+
+Suggest a **brief, curiosity-driving, and relevant subject line** for each email.
+
+---
+
+### 📩 **Email Body Content**
+
+Write **brief, clear, and highly scannable email copy** that includes:
+
+* A **personalized opening line** based on available prospect context (industry, job role, recent event, or relevant challenge).
+* 1–2 concise sentences framing the value of the email.
+* A **tangible value-add, insight, or social proof element** (e.g., stat, case study link, article, or unique perspective).
+* A **clear and natural call-to-action (CTA)** to either book time, share feedback, or engage with content.
+  Use varied CTAs throughout the cadence (not just "book a meeting") such as:
+* "Would you be open to a quick brainstorm?"
+* "I'd love to hear how you're approaching [challenge]."
+* "Would it be helpful if I sent over a quick case study on [X]?"
+
+---
+
+### 🛠️ **Personalization Variables**
+
+Indicate where a rep could optionally personalize based on:
+
+* Prospect's job title/role
+* Company size or industry
+* Recent company news or initiatives
+* Shared connections or mutual interests
+* Relevant pain points for their segment
+
+---
+
+### 📈 **Sequence Guidelines:**
+
+Ensure the cadence:
+
+* Starts with a warm, value-led introduction
+* Provides a new insight, resource, or point of value in every touch
+* Incorporates social proof (client logos, case studies, stats) by Day 4–7
+* Varies CTA types (book meeting, resource offer, question-based asks)
+* Addresses different likely pain points or business objectives across the sequence
+* Is human, authentic, brief (max 5 sentences per email), and never overly "salesy"
+
+---
+
+**Tone:**
+Conversational, consultative, and value-driven — like a helpful peer reaching out, not a pitch-heavy salesperson.
+
+**Output Format:**
+Use clear section headers for each email:
+
+* **Day X | Step Name**
+* **Type:**
+* **Subject Line:**
+* **Email Body:**
+* **Personalization Ideas (optional):**`
 };
 
 export function PitchBuilder() {
