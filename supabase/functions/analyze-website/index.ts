@@ -46,11 +46,16 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           {
             role: 'system',
-            content: `You are an expert sales strategist analyzing a company's website to extract key product and audience information. Based on the website content provided, extract ONLY the information that is explicitly available in the content. Do not make inferences or assumptions.
+            content: `You are an expert sales strategist and market analyst. Analyze the provided website content to extract product information and make intelligent inferences about the target audience and likely objections.
+
+Your analysis should combine:
+1. Explicit information found on the website
+2. Intelligent inferences based on the product/service type, industry, and market positioning
+3. Sales expertise to identify target personas and common objections
 
 Return the information in JSON format:
 
@@ -60,13 +65,18 @@ Return the information in JSON format:
   "keyFeatures": ["Feature 1", "Feature 2", "Feature 3"],
   "differentiators": "What makes this product different or better than alternatives?",
   "successStories": "Notable success stories, metrics, or case studies to reference",
-  "idealCustomer": "Who is the ideal customer? (title, company type, industry, etc.)",
-  "customerChallenges": "What are their top challenges, goals, or pain points?",
+  "idealCustomer": "Who is the ideal customer? (title, company type, industry, etc.) - infer based on product type and positioning",
+  "customerChallenges": "What are their top challenges, goals, or pain points? - infer from industry and product focus",
   "productSolution": "How does this product directly address those challenges or goals?",
-  "objections": "What likely objections or hesitations might they have?"
+  "objections": "What likely objections or hesitations might they have? - infer common sales objections for this type of product/industry"
 }
 
-IMPORTANT: If specific information is not explicitly found in the website content, return "No information found" for that field. Do not make inferences or assumptions.`
+IMPORTANT GUIDANCE:
+- Extract explicit information where available
+- For target audience fields (idealCustomer, customerChallenges), make informed inferences based on the product type, industry, and market positioning
+- For objections, think like a sales professional - what concerns would prospects typically have about this type of solution?
+- Base inferences on product category, pricing signals, complexity, industry standards, and competitive landscape
+- If you cannot make reasonable inferences even with sales expertise, then use "Unable to determine"`
           },
           {
             role: 'user',
