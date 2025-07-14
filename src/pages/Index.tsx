@@ -1,12 +1,8 @@
 
-import { PitchBuilder } from "@/components/PitchBuilder";
+import { RoleBasedPitchBuilder } from "@/components/RoleBasedPitchBuilder";
 
 const Index = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <PitchBuilder />
-    </div>
-  );
+  return <RoleBasedPitchBuilder />;
 };
 
 export default Index;
