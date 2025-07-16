@@ -346,7 +346,7 @@ export function PitchBuilder() {
 
   const addMessage = (type: 'bot' | 'user', content: string) => {
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type,
       content,
       timestamp: new Date()
@@ -510,23 +510,32 @@ export function PitchBuilder() {
         return;
       }
       userMessage = `Website URL: ${userInput}`;
-    } else {
-      userMessage = `Uploaded file: ${uploadedFile!.name}`;
+    } else if (uploadedFile) {
+      userMessage = `Uploaded file: ${uploadedFile.name}`;
     }
     
     addMessage('user', userMessage);
-    addMessage('bot', "Analyzing the website and researching product information...");
+    
+    if (uploadedFile) {
+      addMessage('bot', "Analyzing the PDF document and extracting product information...");
+    } else {
+      addMessage('bot', "Analyzing the website and researching product information...");
+    }
     
     try {
-      // Research and extract product information from the website
-      await extractProductInfo(userInput.trim() || '', productDescription.trim() || undefined);
+      if (uploadedFile) {
+        await extractPDFInfo(uploadedFile);
+      } else {
+        await extractProductInfo(userInput.trim() || '', productDescription.trim() || undefined);
+      }
     } catch (error) {
       console.error('Error extracting product info:', error);
       setIsLoading(false);
-      addMessage('bot', "I had trouble analyzing the website. Let me provide a template you can fill out:");
+      const source = uploadedFile ? 'document' : 'website';
+      addMessage('bot', `I had trouble analyzing the ${source}. Let me provide a template you can fill out:`);
       
       const templateInfo: ProductInfo = {
-        website: userInput.trim() || 'uploaded-document.pdf',
+        website: userInput.trim() || uploadedFile?.name || 'uploaded-document.pdf',
         productName: "",
         coreProblem: "",
         keyFeatures: [],
@@ -587,6 +596,69 @@ export function PitchBuilder() {
     }
   };
 
+  const extractPDFInfo = async (file: File) => {
+    try {
+      // Convert PDF file to base64 for sending to the edge function
+      const fileReader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        fileReader.onload = () => {
+          const result = fileReader.result as string;
+          // Remove data:application/pdf;base64, prefix
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        fileReader.onerror = reject;
+      });
+      
+      fileReader.readAsDataURL(file);
+      const base64Content = await base64Promise;
+
+      const response = await fetch('https://vjcecvadjbeiolcqsyof.supabase.co/functions/v1/analyze-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY2VjdmFkamJlaW9sY3FzeW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMDY2MjcsImV4cCI6MjA2NzU4MjYyN30.lpyOBQqgYxzaqnFRzaR1ZoZsuusTJDC9tcbKb4IR24I`,
+        },
+        body: JSON.stringify({ 
+          pdfContent: base64Content,
+          fileName: file.name
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('PDF analysis error:', errorText);
+        throw new Error('Failed to analyze PDF');
+      }
+
+      const data = await response.json();
+      
+      const extractedInfo: ProductInfo = {
+        website: file.name,
+        productName: data.productName || "",
+        coreProblem: data.coreProblem || "",
+        keyFeatures: data.keyFeatures || [],
+        differentiators: data.differentiators || "",
+        successStories: data.successStories || "",
+        idealCustomer: data.idealCustomer || "",
+        customerChallenges: data.customerChallenges || "",
+        productSolution: data.productSolution || "",
+        objections: data.objections || ""
+      };
+
+      setProductInfo(extractedInfo);
+      setEditingInfo(extractedInfo);
+      setStep('review');
+      setIsLoading(false);
+      setUserInput('');
+      setUploadedFile(null);
+      
+      addMessage('bot', "Great! I've analyzed your PDF document and extracted the product information. Here's what I found. You can review the information above and provide feedback below to make any changes:");
+    } catch (error) {
+      throw error; // Re-throw to be handled by the calling function
+    }
+  };
+
   const extractProductInfo = async (websiteUrl: string, description?: string) => {
     try {
       // Fetch website content for analysis using Supabase Edge Function
@@ -630,28 +702,7 @@ export function PitchBuilder() {
       
       addMessage('bot', "Great! I've analyzed your website and researched your product. Here's what I found. You can review the information above and provide feedback below to make any changes:");
     } catch (error) {
-      // If analysis fails, create empty template
-      const emptyProductInfo: ProductInfo = {
-        website: websiteUrl,
-        productName: "No information found",
-        coreProblem: "No information found",
-        keyFeatures: [],
-        differentiators: "No information found",
-        successStories: "No information found",
-        idealCustomer: "No information found",
-        customerChallenges: "No information found",
-        productSolution: "No information found",
-        objections: "No information found"
-      };
-
-      setProductInfo(emptyProductInfo);
-      setEditingInfo(emptyProductInfo);
-      setStep('review');
-      setIsLoading(false);
-      setUserInput('');
-      setUploadedFile(null);
-      
-      addMessage('bot', "I couldn't extract information from the website. Please fill in the template above or provide feedback below:");
+      throw error; // Re-throw to be handled by the calling function
     }
   };
 
