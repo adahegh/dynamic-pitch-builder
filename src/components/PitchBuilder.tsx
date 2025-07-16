@@ -601,22 +601,50 @@ export function PitchBuilder() {
     }
   };
 
-  const extractPDFInfo = async (file: File) => {
+  const extractPDFInfo = async (file: File, retryCount = 0) => {
+    const maxRetries = 3;
+    const timeoutMs = 300000; // 5 minutes
+    
     try {
+      console.log(`Extracting PDF info for ${file.name}, attempt ${retryCount + 1}`);
+      
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error('PDF file is too large. Please use a file smaller than 10MB.');
+      }
+
       // Convert PDF file to base64 for sending to the edge function
       const fileReader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('File reading timed out'));
+        }, 30000);
+        
         fileReader.onload = () => {
+          clearTimeout(timeout);
           const result = fileReader.result as string;
+          if (!result || !result.includes('base64,')) {
+            reject(new Error('Invalid file format'));
+            return;
+          }
           // Remove data:application/pdf;base64, prefix
           const base64 = result.split(',')[1];
           resolve(base64);
         };
-        fileReader.onerror = reject;
+        fileReader.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error('Failed to read file'));
+        };
       });
       
       fileReader.readAsDataURL(file);
       const base64Content = await base64Promise;
+
+      console.log(`Base64 conversion complete, size: ${base64Content.length} characters`);
+
+      // Create abort controller for request timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const response = await fetch('https://vjcecvadjbeiolcqsyof.supabase.co/functions/v1/analyze-pdf', {
         method: 'POST',
@@ -624,20 +652,28 @@ export function PitchBuilder() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY2VjdmFkamJlaW9sY3FzeW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMDY2MjcsImV4cCI6MjA2NzU4MjYyN30.lpyOBQqgYxzaqnFRzaR1ZoZsuusTJDC9tcbKb4IR24I`,
         },
+        signal: controller.signal,
         body: JSON.stringify({ 
           pdfContent: base64Content,
           fileName: file.name
         }),
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('PDF analysis error:', errorText);
-        throw new Error('Failed to analyze PDF');
+        console.error(`HTTP error ${response.status}:`, errorText);
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('PDF analysis response received successfully');
       
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
       const extractedInfo: ProductInfo = {
         website: "",
         source: 'pdf',
@@ -660,9 +696,45 @@ export function PitchBuilder() {
       setUserInput('');
       setUploadedFile(null);
       
-      addMessage('bot', "Great! I've analyzed your PDF document and extracted the product information. Here's what I found. You can review the information above and provide feedback below to make any changes:");
+      // Show success message with extraction details
+      const extractionDetails = data.extractionMethod ? ` (extraction method: ${data.extractionMethod})` : '';
+      addMessage('bot', `Great! I've analyzed your PDF document and extracted the product information${extractionDetails}. Here's what I found. You can review the information above and provide feedback below to make any changes:`);
+      
     } catch (error) {
-      throw error; // Re-throw to be handled by the calling function
+      console.error(`Error extracting PDF info (attempt ${retryCount + 1}):`, error);
+      
+      // Retry logic for certain types of errors
+      if (retryCount < maxRetries) {
+        const isRetryableError = 
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('timeout') ||
+          error.message.includes('network') ||
+          error.message.includes('AbortError') ||
+          error.message.includes('500');
+          
+        if (isRetryableError) {
+          console.log(`Retrying PDF extraction in ${2 ** retryCount} seconds...`);
+          addMessage('bot', `Having trouble analyzing the PDF. Retrying... (attempt ${retryCount + 2}/${maxRetries + 1})`);
+          
+          await new Promise(resolve => setTimeout(resolve, 2000 * (2 ** retryCount))); // Exponential backoff
+          return await extractPDFInfo(file, retryCount + 1);
+        }
+      }
+      
+      // Final error handling
+      let userFriendlyMessage = "I had trouble analyzing the PDF document. ";
+      
+      if (error.message.includes('too large')) {
+        userFriendlyMessage += "The file is too large. Please try with a smaller PDF (under 10MB).";
+      } else if (error.message.includes('image-based') || error.message.includes('no readable text')) {
+        userFriendlyMessage += "This appears to be an image-based PDF. Please try converting it to a text-based PDF first.";
+      } else if (error.message.includes('timeout')) {
+        userFriendlyMessage += "The analysis is taking too long. Please try with a shorter document.";
+      } else {
+        userFriendlyMessage += "Please check that the file is a valid PDF and try again.";
+      }
+      
+      throw new Error(userFriendlyMessage);
     }
   };
 

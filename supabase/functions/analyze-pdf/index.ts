@@ -14,8 +14,17 @@ serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: { 
+        ...corsHeaders,
+        'Access-Control-Max-Age': '86400',
+      } 
+    });
   }
+
+  // Set a timeout for the entire function execution
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), 290000); // 4.8 minutes
 
   try {
     console.log('Starting PDF analysis...');
@@ -35,6 +44,11 @@ serve(async (req) => {
       throw new Error('PDF content is required');
     }
 
+    if (typeof pdfContent !== 'string') {
+      console.error('PDF content must be a base64 string');
+      throw new Error('Invalid PDF content format');
+    }
+
     console.log(`Processing PDF: ${fileName || 'unknown'}, size: ${pdfContent.length} chars`);
     
     // Validate file size (limit to ~10MB base64)
@@ -43,54 +57,102 @@ serve(async (req) => {
       throw new Error('PDF file is too large. Please use a file smaller than 10MB.');
     }
 
-    // Use a simpler PDF parsing approach with native Deno
+    // Multiple PDF parsing approaches with fallbacks
     console.log('Converting base64 to buffer...');
-    const pdfBuffer = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
-    
-    console.log('Extracting text from PDF using alternative method...');
-    
-    // Try to extract text using a simpler approach
-    let text = '';
+    let pdfBuffer: Uint8Array;
     try {
-      // Convert PDF buffer to string and attempt basic text extraction
+      pdfBuffer = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
+    } catch (decodeError) {
+      console.error('Base64 decode error:', decodeError);
+      throw new Error('Invalid base64 PDF content');
+    }
+    
+    console.log('Extracting text from PDF using multiple methods...');
+    
+    let text = '';
+    let extractionMethod = 'none';
+    
+    // Method 1: Advanced PDF text extraction with multiple patterns
+    try {
       const pdfString = new TextDecoder('latin1').decode(pdfBuffer);
+      console.log('PDF converted to string, attempting pattern extraction...');
       
-      // Look for text content patterns in PDF
-      const textMatches = pdfString.match(/\(([^)]+)\)/g);
-      if (textMatches) {
-        text = textMatches
+      // Pattern 1: Text in parentheses (most common)
+      const parenthesesMatches = pdfString.match(/\(([^)]{2,})\)/g);
+      if (parenthesesMatches && parenthesesMatches.length > 5) {
+        const parenthesesText = parenthesesMatches
           .map(match => match.slice(1, -1))
-          .filter(t => t.length > 2 && /[a-zA-Z]/.test(t))
+          .filter(t => t.length > 1 && /[a-zA-Z]/.test(t))
           .join(' ');
+        text += parenthesesText + ' ';
+        extractionMethod = 'parentheses';
       }
       
-      // Also try to extract text between Tj operators
+      // Pattern 2: Text between Tj operators
       const tjMatches = pdfString.match(/\[(.*?)\]\s*TJ/g);
-      if (tjMatches) {
+      if (tjMatches && tjMatches.length > 0) {
         const tjText = tjMatches
           .map(match => match.replace(/\[(.*?)\]\s*TJ/, '$1'))
-          .filter(t => t.length > 2)
+          .filter(t => t.length > 1)
           .join(' ');
-        text = text + ' ' + tjText;
+        text += tjText + ' ';
+        extractionMethod += '+tj';
       }
       
-      // Clean up the extracted text
+      // Pattern 3: BT...ET blocks (text blocks)
+      const btMatches = pdfString.match(/BT\s+(.*?)\s+ET/gs);
+      if (btMatches && btMatches.length > 0) {
+        const btText = btMatches
+          .map(block => {
+            // Extract text from within the BT...ET block
+            const innerText = block.match(/\(([^)]+)\)/g);
+            return innerText ? innerText.map(m => m.slice(1, -1)).join(' ') : '';
+          })
+          .filter(t => t.length > 1)
+          .join(' ');
+        text += btText + ' ';
+        extractionMethod += '+bt';
+      }
+      
+      // Pattern 4: Simple text patterns
+      const simpleTextMatches = pdfString.match(/\s([A-Za-z]{3,}(?:\s[A-Za-z]{3,})*)\s/g);
+      if (simpleTextMatches && text.length < 100) {
+        const simpleText = simpleTextMatches
+          .map(match => match.trim())
+          .filter(t => t.length > 3 && !/^[0-9\.\-\s]+$/.test(t))
+          .join(' ');
+        text += simpleText + ' ';
+        extractionMethod += '+simple';
+      }
+      
+      console.log(`Extraction method used: ${extractionMethod}`);
+      
+    } catch (extractError) {
+      console.error('PDF text extraction error:', extractError);
+      // Don't throw here, try fallback method below
+    }
+    
+    // Clean up extracted text
+    if (text) {
       text = text
         .replace(/\\[nrtbf]/g, ' ')
         .replace(/\s+/g, ' ')
+        .replace(/[^\x20-\x7E\u00A0-\u024F\u1E00-\u1EFF]/g, ' ') // Keep printable ASCII and extended Latin
         .trim();
-        
-    } catch (extractError) {
-      console.error('PDF text extraction error:', extractError);
-      throw new Error('Could not extract text from PDF. The PDF might be image-based, encrypted, or contain no readable text.');
-    }
-    
-    if (!text || text.trim().length < 50) {
-      console.error('Insufficient text extracted:', text?.length || 0, 'characters');
-      throw new Error('Could not extract sufficient text from PDF. The PDF might be image-based, encrypted, or contain no readable text.');
     }
     
     console.log(`Extracted text length: ${text.length} characters`);
+    
+    if (!text || text.trim().length < 50) {
+      console.error('Insufficient text extracted:', text?.length || 0, 'characters');
+      throw new Error('Could not extract sufficient text from PDF. The PDF might be image-based, encrypted, or contain no readable text. Please try converting the PDF to a text-based format first.');
+    }
+    
+    // Call OpenAI API for analysis with timeout
+    console.log('Calling OpenAI API for analysis...');
+    
+    const openAIController = new AbortController();
+    const openAITimeoutId = setTimeout(() => openAIController.abort(), 240000); // 4 minutes for OpenAI
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -98,6 +160,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
+      signal: openAIController.signal,
       body: JSON.stringify({
         model: 'gpt-4.1-2025-04-14',
         messages: [
@@ -143,13 +206,17 @@ ${text}`
       }),
     });
 
+    clearTimeout(openAITimeoutId);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`Failed to analyze with OpenAI: ${response.status}`);
+      console.error('OpenAI API error:', response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('OpenAI response received successfully');
+    
     const analysisText = data.choices[0].message.content;
     
     console.log('Raw OpenAI response:', analysisText);
@@ -174,7 +241,13 @@ ${text}`
       console.log('Cleaned response:', cleanedResponse);
       
       const extractedInfo = JSON.parse(cleanedResponse);
-      return new Response(JSON.stringify(extractedInfo), {
+      console.log('PDF analysis completed successfully');
+      
+      return new Response(JSON.stringify({
+        ...extractedInfo,
+        extractionMethod: extractionMethod,
+        extractedTextLength: text.length
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (parseError) {
@@ -185,9 +258,23 @@ ${text}`
 
   } catch (error) {
     console.error('Error in analyze-pdf function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    
+    // Provide more specific error messages
+    let errorMessage = 'Unknown error occurred';
+    if (error.name === 'AbortError') {
+      errorMessage = 'Request timed out. The PDF might be too large or complex to process.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    clearTimeout(timeoutId);
   }
 });
