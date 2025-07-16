@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// Using pdfjs-serverless which is designed for edge functions
-import { readPDF } from "https://deno.land/x/pdfjs_serverless@0.1.1/mod.ts";
+import pdf from 'npm:pdf-parse/lib/pdf-parse.js';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -31,11 +30,11 @@ serve(async (req) => {
     }
 
     // Convert base64 to binary data
-    const pdfData = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
+    const pdfBuffer = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
     
-    // Extract text from PDF using pdfjs-serverless
+    // Extract text from PDF using pdf-parse
     console.log('Extracting text from PDF...');
-    const extractedData = await readPDF(pdfData);
+    const extractedData = await pdf(pdfBuffer);
     const text = extractedData.text;
     
     if (!text || text.trim().length === 0) {
