@@ -15,7 +15,7 @@ serve(async (req) => {
   }
 
   try {
-    const { productInfo, pitchStrategy } = await req.json();
+    const { productInfo, pitchStrategy, systemPrompt } = await req.json();
 
     if (!productInfo || !pitchStrategy) {
       throw new Error('Product information and pitch strategy are required');
@@ -33,7 +33,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert sales strategist specializing in objection handling. Based on the provided product information, target audience, and pitch strategy, generate comprehensive objection handling tactics in a structured table format.
+            content: systemPrompt || `You are an expert sales strategist specializing in objection handling. Based on the provided product information, target audience, and pitch strategy, generate comprehensive objection handling tactics in a structured table format.
 
 Return the response in this exact JSON format:
 

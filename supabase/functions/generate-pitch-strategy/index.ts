@@ -28,7 +28,7 @@ serve(async (req) => {
     }
 
     console.log('Starting pitch strategy generation...');
-    const { productInfo } = await req.json();
+    const { productInfo, systemPrompt } = await req.json();
     console.log('Request body parsed successfully');
 
     if (!productInfo) {
@@ -59,7 +59,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert sales strategist. Based on the provided product and customer information, generate a personalized pitch strategy with cold call starter, talk tracks and key talking points.
+            content: systemPrompt || `You are an expert sales strategist. Based on the provided product and customer information, generate a personalized pitch strategy with cold call starter, talk tracks and key talking points.
 
 Return the response in this exact JSON format:
 
@@ -72,12 +72,12 @@ Return the response in this exact JSON format:
 Guielines for cold call starters:
 - Provide 2 sample opening lines that a rep can use to kick off a cold call.
 - Use proven frameworks like Pattern Interrupt, Upfront Contract, or Pain Probes.
-- Keep it natural, brief, and engaging — don’t sound overly scripted.
+- Keep it natural, brief, and engaging — don't sound overly scripted.
 - Goal: earn attention and create space for conversation.
 
 Example formats:
-- Pattern Interrupt: “Hi [Name] — did I catch you at a decent time?”
-- Upfront Contract: “If I can take 30 seconds to explain why I’m calling, you can decide if it makes sense to continue — fair enough?”
+- Pattern Interrupt: "Hi [Name] — did I catch you at a decent time?"
+- Upfront Contract: "If I can take 30 seconds to explain why I'm calling, you can decide if it makes sense to continue — fair enough?"
 
 
 Guidelines for talk tracks:

@@ -814,7 +814,10 @@ export function PitchBuilder() {
           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY2VjdmFkamJlaW9sY3FzeW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMDY2MjcsImV4cCI6MjA2NzU4MjYyN30.lpyOBQqgYxzaqnFRzaR1ZoZsuusTJDC9tcbKb4IR24I`,
         },
         signal: controller.signal,
-        body: JSON.stringify({ productInfo }),
+        body: JSON.stringify({ 
+          productInfo,
+          systemPrompt: systemPrompts.pitchStrategy
+        }),
       });
 
       clearTimeout(timeoutId);
@@ -924,7 +927,8 @@ export function PitchBuilder() {
         },
         body: JSON.stringify({ 
           productInfo,
-          pitchStrategy 
+          pitchStrategy,
+          systemPrompt: systemPrompts.objectionHandling
         }),
       });
 
@@ -1053,7 +1057,8 @@ export function PitchBuilder() {
         body: JSON.stringify({ 
           productInfo,
           pitchStrategy,
-          objectionHandling
+          objectionHandling,
+          systemPrompt: systemPrompts.emailCadence
         }),
       });
 
