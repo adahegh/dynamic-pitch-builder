@@ -86,6 +86,10 @@ Likely Objections: ${productInfo.objections}
 
 PITCH STRATEGY
 --------------
+Cold Call Starters:
+${pitchStrategy.coldCallStarters?.map((starter, index) => `${index + 1}. ${starter}`).join('\n') || 'No cold call starters available'}
+
+Talk Tracks:
 ${pitchStrategy.talkTracks?.map((track, index) => `Talk Track ${index + 1}:\n${track}\n`).join('\n') || 'No talk tracks available'}
 
 Key Talking Points:
@@ -185,6 +189,25 @@ Generated on: ${new Date().toLocaleDateString()}`;
               <CardTitle className="text-xl text-purple-700">Pitch Strategy</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Cold Call Starters */}
+              <div>
+                <h4 className="font-semibold text-lg mb-4 text-green-700">Cold Call Starters</h4>
+                <Card className="bg-green-50 border-green-200">
+                  <CardContent className="pt-4">
+                    <div className="space-y-3">
+                      {pitchStrategy.coldCallStarters?.map((starter, index) => (
+                        <div key={index} className="flex items-start">
+                          <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 mr-3 mt-0.5">
+                            {index + 1}
+                          </Badge>
+                          <p className="text-gray-700">{starter}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
               {/* Talk Tracks */}
               <div>
                 <h4 className="font-semibold text-lg mb-4 text-blue-700">Talk Tracks</h4>
