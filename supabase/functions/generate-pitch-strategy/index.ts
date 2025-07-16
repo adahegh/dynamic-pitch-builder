@@ -9,27 +9,53 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log(`Generate pitch strategy function called with method: ${req.method}`);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { productInfo } = await req.json();
-
-    if (!productInfo) {
-      throw new Error('Product information is required');
+    // Validate OpenAI API key
+    if (!openAIApiKey) {
+      console.error('OpenAI API key is missing');
+      return new Response(JSON.stringify({ error: 'OpenAI API key is not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Use OpenAI to generate personalized pitch strategy
+    console.log('Starting pitch strategy generation...');
+    const { productInfo } = await req.json();
+    console.log('Request body parsed successfully');
+
+    if (!productInfo) {
+      console.error('Product information is missing from request');
+      return new Response(JSON.stringify({ error: 'Product information is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Product info received:', Object.keys(productInfo));
+
+    console.log('Calling OpenAI API for pitch strategy generation...');
+    
+    // Use OpenAI to generate personalized pitch strategy with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
+      signal: controller.signal,
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -90,8 +116,18 @@ Create compelling talk tracks that reference these specific details and talking 
       }),
     });
 
+    clearTimeout(timeoutId);
+    console.log('OpenAI API response received');
+
     if (!response.ok) {
-      throw new Error('Failed to generate pitch strategy with OpenAI');
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
+      return new Response(JSON.stringify({ 
+        error: `OpenAI API error: ${response.status} - ${errorText}` 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const data = await response.json();
@@ -119,18 +155,40 @@ Create compelling talk tracks that reference these specific details and talking 
       console.log('Cleaned response:', cleanedResponse);
       
       const strategy = JSON.parse(cleanedResponse);
+      console.log('Pitch strategy generated successfully');
+      
       return new Response(JSON.stringify(strategy), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (parseError) {
       console.error('Failed to parse OpenAI response as JSON:', parseError);
       console.error('Original response:', strategyText);
-      throw new Error('Invalid response format from AI strategy generation');
+      return new Response(JSON.stringify({ 
+        error: 'Invalid response format from AI strategy generation',
+        details: parseError.message 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
   } catch (error) {
     console.error('Error in generate-pitch-strategy function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    
+    // Handle timeout errors specifically
+    if (error.name === 'AbortError') {
+      return new Response(JSON.stringify({ 
+        error: 'Request timeout - please try again with a shorter product description' 
+      }), {
+        status: 408,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: error.message || 'An unexpected error occurred',
+      type: error.name || 'UnknownError'
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

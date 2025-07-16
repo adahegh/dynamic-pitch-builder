@@ -793,27 +793,44 @@ export function PitchBuilder() {
     generatePitchStrategy();
   };
 
-  const generatePitchStrategy = async () => {
+  const generatePitchStrategy = async (retryCount = 0) => {
     if (!productInfo) return;
     
     setIsLoading(true);
-    addMessage('bot', "Perfect! Now I'll generate your personalized pitch strategy based on your product information...");
+    if (retryCount === 0) {
+      addMessage('bot', "Perfect! Now I'll generate your personalized pitch strategy based on your product information...");
+    } else {
+      addMessage('bot', `Retrying pitch strategy generation (attempt ${retryCount + 1})...`);
+    }
     
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minute timeout
+      
       const response = await fetch('https://vjcecvadjbeiolcqsyof.supabase.co/functions/v1/generate-pitch-strategy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqY2VjdmFkamJlaW9sY3FzeW9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIwMDY2MjcsImV4cCI6MjA2NzU4MjYyN30.lpyOBQqgYxzaqnFRzaR1ZoZsuusTJDC9tcbKb4IR24I`,
         },
+        signal: controller.signal,
         body: JSON.stringify({ productInfo }),
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Failed to generate pitch strategy');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const strategy = await response.json();
+      
+      // Validate response structure
+      if (!strategy || !strategy.coldCallStarters || !strategy.talkTracks || !strategy.talkingPoints) {
+        throw new Error('Invalid response format from pitch strategy service');
+      }
+      
       setPitchStrategy(strategy);
       setEditingStrategy(strategy);
       setStep('strategy');
@@ -822,7 +839,27 @@ export function PitchBuilder() {
     } catch (error) {
       console.error('Error generating pitch strategy:', error);
       setIsLoading(false);
-      addMessage('bot', "I had trouble generating your pitch strategy. Please try again.");
+      
+      // Retry logic with exponential backoff
+      if (retryCount < 2 && (error.name === 'AbortError' || error.message.includes('fetch'))) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        setTimeout(() => generatePitchStrategy(retryCount + 1), delay);
+        return;
+      }
+      
+      // User-friendly error messages
+      let errorMessage = "I had trouble generating your pitch strategy. ";
+      if (error.name === 'AbortError') {
+        errorMessage += "The request timed out. Please try again.";
+      } else if (error.message.includes('OpenAI API key')) {
+        errorMessage += "There's an issue with the AI service configuration.";
+      } else if (error.message.includes('timeout')) {
+        errorMessage += "The request took too long. Please try again.";
+      } else {
+        errorMessage += "Please try again.";
+      }
+      
+      addMessage('bot', errorMessage);
     }
   };
 
