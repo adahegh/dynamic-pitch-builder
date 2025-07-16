@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import pdf from 'npm:pdf-parse/lib/pdf-parse.js';
+import { getDocument } from "https://deno.land/x/pdfjs@v2.14.305/mod.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -32,13 +32,36 @@ serve(async (req) => {
     // Convert base64 to binary data
     const pdfBuffer = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
     
-    // Extract text from PDF using pdf-parse
+    // Extract text from PDF using PDF.js
     console.log('Extracting text from PDF...');
-    const extractedData = await pdf(pdfBuffer);
-    const text = extractedData.text;
+    let text = '';
+    
+    try {
+      const doc = await getDocument({ data: pdfBuffer });
+      const numPages = doc.numPages;
+      console.log(`PDF has ${numPages} pages`);
+      
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        try {
+          const page = await doc.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .filter((item: any) => item.str && item.str.trim())
+            .map((item: any) => item.str)
+            .join(' ');
+          text += pageText + '\n';
+        } catch (pageError) {
+          console.warn(`Failed to extract text from page ${pageNum}:`, pageError);
+          // Continue with other pages
+        }
+      }
+    } catch (pdfError) {
+      console.error('PDF parsing error:', pdfError);
+      throw new Error('Failed to parse PDF. The file might be corrupted, encrypted, or in an unsupported format.');
+    }
     
     if (!text || text.trim().length === 0) {
-      throw new Error('Could not extract text from PDF. The PDF might be image-based or encrypted.');
+      throw new Error('Could not extract text from PDF. The PDF might be image-based, encrypted, or contain no readable text.');
     }
     
     console.log(`Extracted text length: ${text.length} characters`);
