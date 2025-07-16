@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { extract } from "https://esm.sh/unpdf@0.11.0";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -27,6 +28,20 @@ serve(async (req) => {
     if (pdfContent.length > 13500000) {
       throw new Error('PDF file is too large. Please use a file smaller than 10MB.');
     }
+
+    // Convert base64 to binary data
+    const pdfData = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
+    
+    // Extract text from PDF
+    console.log('Extracting text from PDF...');
+    const { text } = await extract(pdfData);
+    
+    if (!text || text.trim().length === 0) {
+      throw new Error('Could not extract text from PDF. The PDF might be image-based or encrypted.');
+    }
+    
+    console.log(`Extracted text length: ${text.length} characters`);
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -38,7 +53,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert sales strategist and market analyst. Analyze the provided PDF document to extract product information and make intelligent inferences about the target audience and likely objections.
+            content: `You are an expert sales strategist and market analyst. Analyze the provided document text to extract product information and make intelligent inferences about the target audience and likely objections.
 
 Your analysis should combine:
 1. Explicit information found in the document
@@ -68,19 +83,10 @@ IMPORTANT GUIDANCE:
           },
           {
             role: 'user',
-            content: [
-              {
-                type: "text",
-                text: "Please analyze this PDF document and extract product/audience information. The document contains product or company information that needs to be analyzed for sales strategy purposes."
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${pdfContent}`,
-                  detail: "high"
-                }
-              }
-            ]
+            content: `Please analyze this document and extract product/audience information for sales strategy purposes.
+
+Document content:
+${text}`
           }
         ],
         temperature: 0.3,
