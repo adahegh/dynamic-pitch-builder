@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { extract } from "https://esm.sh/unpdf@0.11.0";
+// Using pdfjs-serverless which is designed for edge functions
+import { readPDF } from "https://deno.land/x/pdfjs_serverless@0.1.1/mod.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -32,9 +33,10 @@ serve(async (req) => {
     // Convert base64 to binary data
     const pdfData = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
     
-    // Extract text from PDF
+    // Extract text from PDF using pdfjs-serverless
     console.log('Extracting text from PDF...');
-    const { text } = await extract(pdfData);
+    const extractedData = await readPDF(pdfData);
+    const text = extractedData.text;
     
     if (!text || text.trim().length === 0) {
       throw new Error('Could not extract text from PDF. The PDF might be image-based or encrypted.');
