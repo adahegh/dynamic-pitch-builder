@@ -34,7 +34,6 @@ export interface ObjectionHandling {
 }
 
 export interface PitchStrategy {
-  coldCallStarters: string[];
   talkTracks: string[];
   talkingPoints: string[];
 }
