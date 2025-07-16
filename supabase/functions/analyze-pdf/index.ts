@@ -24,7 +24,7 @@ serve(async (req) => {
 
   // Set a timeout for the entire function execution
   const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), 290000); // 4.8 minutes
+  const timeoutId = setTimeout(() => timeoutController.abort(), 45000); // 45 seconds
 
   try {
     console.log('Starting PDF analysis...');
@@ -51,10 +51,10 @@ serve(async (req) => {
 
     console.log(`Processing PDF: ${fileName || 'unknown'}, size: ${pdfContent.length} chars`);
     
-    // Validate file size (limit to ~10MB base64)
-    if (pdfContent.length > 13500000) {
+    // Validate file size (limit to ~5MB base64)
+    if (pdfContent.length > 6750000) {
       console.error('PDF file too large:', pdfContent.length);
-      throw new Error('PDF file is too large. Please use a file smaller than 10MB.');
+      throw new Error('PDF file is too large. Please use a file smaller than 5MB.');
     }
 
     // Multiple PDF parsing approaches with fallbacks
@@ -148,11 +148,22 @@ serve(async (req) => {
       throw new Error('Could not extract sufficient text from PDF. The PDF might be image-based, encrypted, or contain no readable text. Please try converting the PDF to a text-based format first.');
     }
     
+    // Chunk text if too long (limit to ~50,000 characters for safe token usage)
+    const maxTextLength = 50000;
+    if (text.length > maxTextLength) {
+      console.log(`Text too long (${text.length} chars), truncating to ${maxTextLength} chars`);
+      // Take first part and last part to get overview and conclusion
+      const firstPart = text.substring(0, maxTextLength * 0.7);
+      const lastPart = text.substring(text.length - maxTextLength * 0.3);
+      text = firstPart + "\n\n[... middle content truncated ...]\n\n" + lastPart;
+      console.log(`Text after chunking: ${text.length} characters`);
+    }
+    
     // Call OpenAI API for analysis with timeout
     console.log('Calling OpenAI API for analysis...');
     
     const openAIController = new AbortController();
-    const openAITimeoutId = setTimeout(() => openAIController.abort(), 240000); // 4 minutes for OpenAI
+    const openAITimeoutId = setTimeout(() => openAIController.abort(), 30000); // 30 seconds for OpenAI
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -162,7 +173,7 @@ serve(async (req) => {
       },
       signal: openAIController.signal,
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',

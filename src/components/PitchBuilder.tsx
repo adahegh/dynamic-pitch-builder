@@ -603,14 +603,14 @@ export function PitchBuilder() {
 
   const extractPDFInfo = async (file: File, retryCount = 0) => {
     const maxRetries = 3;
-    const timeoutMs = 300000; // 5 minutes
+    const timeoutMs = 50000; // 50 seconds
     
     try {
       console.log(`Extracting PDF info for ${file.name}, attempt ${retryCount + 1}`);
       
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error('PDF file is too large. Please use a file smaller than 10MB.');
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('PDF file is too large. Please use a file smaller than 5MB.');
       }
 
       // Convert PDF file to base64 for sending to the edge function
