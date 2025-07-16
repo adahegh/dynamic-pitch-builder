@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import pdf from 'npm:pdf-parse/lib/pdf-parse.js';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -10,15 +9,29 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('PDF analyze function called with method:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { pdfContent, fileName } = await req.json();
+    console.log('Starting PDF analysis...');
+    
+    if (!openAIApiKey) {
+      console.error('OpenAI API key not found in environment');
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const requestBody = await req.json();
+    console.log('Request body keys:', Object.keys(requestBody));
+    
+    const { pdfContent, fileName } = requestBody;
 
     if (!pdfContent) {
+      console.error('No PDF content provided');
       throw new Error('PDF content is required');
     }
 
@@ -26,19 +39,55 @@ serve(async (req) => {
     
     // Validate file size (limit to ~10MB base64)
     if (pdfContent.length > 13500000) {
+      console.error('PDF file too large:', pdfContent.length);
       throw new Error('PDF file is too large. Please use a file smaller than 10MB.');
     }
 
-    // Convert base64 to binary data
+    // Use a simpler PDF parsing approach with native Deno
+    console.log('Converting base64 to buffer...');
     const pdfBuffer = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
     
-    // Extract text from PDF using pdf-parse
-    console.log('Extracting text from PDF...');
-    const extractedData = await pdf(pdfBuffer);
-    const text = extractedData.text;
+    console.log('Extracting text from PDF using alternative method...');
     
-    if (!text || text.trim().length === 0) {
+    // Try to extract text using a simpler approach
+    let text = '';
+    try {
+      // Convert PDF buffer to string and attempt basic text extraction
+      const pdfString = new TextDecoder('latin1').decode(pdfBuffer);
+      
+      // Look for text content patterns in PDF
+      const textMatches = pdfString.match(/\(([^)]+)\)/g);
+      if (textMatches) {
+        text = textMatches
+          .map(match => match.slice(1, -1))
+          .filter(t => t.length > 2 && /[a-zA-Z]/.test(t))
+          .join(' ');
+      }
+      
+      // Also try to extract text between Tj operators
+      const tjMatches = pdfString.match(/\[(.*?)\]\s*TJ/g);
+      if (tjMatches) {
+        const tjText = tjMatches
+          .map(match => match.replace(/\[(.*?)\]\s*TJ/, '$1'))
+          .filter(t => t.length > 2)
+          .join(' ');
+        text = text + ' ' + tjText;
+      }
+      
+      // Clean up the extracted text
+      text = text
+        .replace(/\\[nrtbf]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+        
+    } catch (extractError) {
+      console.error('PDF text extraction error:', extractError);
       throw new Error('Could not extract text from PDF. The PDF might be image-based, encrypted, or contain no readable text.');
+    }
+    
+    if (!text || text.trim().length < 50) {
+      console.error('Insufficient text extracted:', text?.length || 0, 'characters');
+      throw new Error('Could not extract sufficient text from PDF. The PDF might be image-based, encrypted, or contain no readable text.');
     }
     
     console.log(`Extracted text length: ${text.length} characters`);
