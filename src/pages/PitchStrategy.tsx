@@ -4,7 +4,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Copy } from 'lucide-react';
-import { PitchStrategy as PitchStrategyType, ProductInfo, ObjectionHandling, EmailCadenceStep } from '@/components/PitchBuilder';
+// Define the types locally since they're not exported from PitchBuilder
+interface PitchStrategyType {
+  coldCallStarters: string[];
+  talkTracks: string[];
+  talkingPoints: string[];
+}
+
+interface ProductInfo {
+  productName: string;
+  coreProblem: string;
+  keyFeatures: string[];
+  differentiators: string;
+  successStories: string;
+  idealCustomer: string;
+  customerChallenges: string;
+  productSolution: string;
+  objections: string;
+}
+
+interface ObjectionHandling {
+  objection: string;
+  response: string;
+}
+
+interface EmailCadenceStep {
+  day: string;
+  step: string;
+  type: string;
+  content: string;
+}
 import { EmailCard } from '@/components/EmailCard';
 import { useToast } from '@/hooks/use-toast';
 
