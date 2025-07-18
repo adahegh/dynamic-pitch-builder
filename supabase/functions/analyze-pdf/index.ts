@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -173,7 +174,7 @@ serve(async (req) => {
       },
       signal: openAIController.signal,
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -184,7 +185,9 @@ Your analysis should combine:
 2. Intelligent inferences based on the product/service type, industry, and market positioning
 3. Sales expertise to identify target personas and common objections
 
-Return the information in JSON format:
+CRITICAL: You MUST return ONLY a valid JSON object with no additional text, markdown formatting, or explanations. Do not use markdown code blocks or any other formatting.
+
+Return exactly this JSON structure:
 
 {
   "productName": "Name of the main product/service",

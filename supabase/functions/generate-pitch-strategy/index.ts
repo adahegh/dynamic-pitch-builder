@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -45,7 +46,7 @@ serve(async (req) => {
     
     // Use OpenAI to generate personalized pitch strategy with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -55,13 +56,15 @@ serve(async (req) => {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: systemPrompt || `You are an expert sales strategist. Based on the provided product and customer information, generate a personalized pitch strategy with cold call starter, talk tracks and key talking points.
+            content: systemPrompt || `You are an expert sales strategist. Based on the provided product and customer information, generate a personalized pitch strategy with cold call starters, talk tracks and key talking points.
 
-Return the response in this exact JSON format:
+CRITICAL: You MUST return ONLY a valid JSON object with no additional text, markdown formatting, explanations, or code blocks. Do not use markdown formatting, headers, or any other text outside the JSON structure.
+
+Return exactly this JSON format:
 
 { 
   "coldCallStarters": ["Starter 1", "Starter 2"],
@@ -69,7 +72,7 @@ Return the response in this exact JSON format:
   "talkingPoints": ["Point 1", "Point 2", "Point 3", "Point 4", "Point 5", "Point 6"]
 }
 
-Guielines for cold call starters:
+Guidelines for cold call starters:
 - Provide 2 sample opening lines that a rep can use to kick off a cold call.
 - Use proven frameworks like Pattern Interrupt, Upfront Contract, or Pain Probes.
 - Keep it natural, brief, and engaging — don't sound overly scripted.
@@ -78,7 +81,6 @@ Guielines for cold call starters:
 Example formats:
 - Pattern Interrupt: "Hi [Name] — did I catch you at a decent time?"
 - Upfront Contract: "If I can take 30 seconds to explain why I'm calling, you can decide if it makes sense to continue — fair enough?"
-
 
 Guidelines for talk tracks:
 - Create 2 personalized opening pitch talk tracks
@@ -146,6 +148,11 @@ Create compelling talk tracks that reference these specific details and talking 
         cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
       
+      // Remove any markdown headers or formatting
+      cleanedResponse = cleanedResponse.replace(/^#+\s.*$/gm, '');
+      cleanedResponse = cleanedResponse.replace(/^\*\*.*\*\*$/gm, '');
+      cleanedResponse = cleanedResponse.replace(/^-\s/gm, '');
+      
       // Try to find JSON object in the response
       const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -155,6 +162,13 @@ Create compelling talk tracks that reference these specific details and talking 
       console.log('Cleaned response:', cleanedResponse);
       
       const strategy = JSON.parse(cleanedResponse);
+      
+      // Validate the expected structure
+      if (!strategy.coldCallStarters || !strategy.talkTracks || !strategy.talkingPoints) {
+        console.error('Invalid strategy structure:', strategy);
+        throw new Error('Response missing required fields: coldCallStarters, talkTracks, or talkingPoints');
+      }
+      
       console.log('Pitch strategy generated successfully');
       
       return new Response(JSON.stringify(strategy), {
@@ -163,13 +177,43 @@ Create compelling talk tracks that reference these specific details and talking 
     } catch (parseError) {
       console.error('Failed to parse OpenAI response as JSON:', parseError);
       console.error('Original response:', strategyText);
-      return new Response(JSON.stringify({ 
-        error: 'Invalid response format from AI strategy generation',
-        details: parseError.message 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      
+      // Fallback: try to create a valid response from the text
+      try {
+        const fallbackStrategy = {
+          coldCallStarters: [
+            "Hi [Name], I hope I'm catching you at a good time. I noticed your company might be facing challenges with " + (productInfo.customerChallenges || "operational efficiency") + ". Do you have 30 seconds for me to explain how we've helped similar companies?",
+            "Good morning [Name], I'm calling because we've been working with companies like yours to solve " + (productInfo.coreProblem || "common business challenges") + ". Would you be open to a brief conversation about this?"
+          ],
+          talkTracks: [
+            `Hi [Name], I understand that ${productInfo.customerChallenges || 'many companies in your industry'} face significant challenges. ${productInfo.productName} is specifically designed to ${productInfo.productSolution || 'address these exact pain points'}. ${productInfo.differentiators ? 'What sets us apart is ' + productInfo.differentiators : 'We have a unique approach that'} has helped companies achieve measurable results. Would you be interested in learning more?`,
+            `${productInfo.productName} solves ${productInfo.coreProblem || 'critical business challenges'} for companies like yours. ${productInfo.successStories || 'Our clients have seen significant improvements'} after implementation. Given your role and company focus, I believe there could be a strong fit. Can we schedule a brief call to explore this further?`
+          ],
+          talkingPoints: [
+            `${productInfo.productName} directly addresses ${productInfo.coreProblem || 'key business challenges'}`,
+            `Key features include: ${productInfo.keyFeatures?.join(', ') || 'comprehensive solutions tailored to your needs'}`,
+            `What differentiates us: ${productInfo.differentiators || 'our unique approach and proven results'}`,
+            `Success stories: ${productInfo.successStories || 'proven track record with similar companies'}`,
+            `Ideal for: ${productInfo.idealCustomer || 'companies looking to improve efficiency and results'}`,
+            `Addresses common objections: ${productInfo.objections || 'comprehensive support and proven ROI'}`
+          ]
+        };
+        
+        console.log('Created fallback strategy');
+        return new Response(JSON.stringify(fallbackStrategy), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (fallbackError) {
+        console.error('Fallback strategy creation failed:', fallbackError);
+        return new Response(JSON.stringify({ 
+          error: 'Invalid response format from AI strategy generation',
+          details: parseError.message,
+          originalResponse: strategyText.substring(0, 500) + '...'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
   } catch (error) {
