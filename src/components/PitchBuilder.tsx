@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/useAuth"
-import { supabase } from "@/integrations/supabase/client"
 import {
   Accordion,
   AccordionContent,
@@ -29,7 +28,7 @@ interface PitchStrategy {
 }
 
 const PitchBuilder = () => {
-  const { user } = useAuth();
+  const { supabase } = useAuth();
   const [productInfo, setProductInfo] = useState({
     productName: '',
     coreProblem: '',
