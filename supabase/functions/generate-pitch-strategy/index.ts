@@ -9,6 +9,111 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Enhanced JSON extraction function
+const extractJSONFromResponse = (text: string) => {
+  console.log('Attempting to extract JSON from response...');
+  
+  // Try multiple extraction strategies
+  const strategies = [
+    // Strategy 1: Look for JSON between code blocks
+    () => {
+      const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      return jsonMatch ? jsonMatch[1] : null;
+    },
+    
+    // Strategy 2: Look for standalone JSON object
+    () => {
+      const jsonMatch = text.match(/\{[\s\S]*?\}/);
+      return jsonMatch ? jsonMatch[0] : null;
+    },
+    
+    // Strategy 3: Clean and extract from markdown headers
+    () => {
+      let cleaned = text.trim();
+      // Remove markdown headers and formatting
+      cleaned = cleaned.replace(/^#+\s.*$/gm, '');
+      cleaned = cleaned.replace(/^\*\*.*\*\*$/gm, '');
+      cleaned = cleaned.replace(/^-\s/gm, '');
+      cleaned = cleaned.replace(/```(?:json)?\s*/g, '');
+      cleaned = cleaned.replace(/\s*```/g, '');
+      
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      return jsonMatch ? jsonMatch[0] : null;
+    },
+    
+    // Strategy 4: Extract from specific markers
+    () => {
+      const startMarkers = ['{', '{\n', '{ \n'];
+      const endMarkers = ['}', '\n}', '\n }'];
+      
+      for (const startMarker of startMarkers) {
+        const startIndex = text.indexOf(startMarker);
+        if (startIndex !== -1) {
+          for (const endMarker of endMarkers) {
+            const endIndex = text.lastIndexOf(endMarker);
+            if (endIndex > startIndex) {
+              return text.substring(startIndex, endIndex + endMarker.length).trim();
+            }
+          }
+        }
+      }
+      return null;
+    }
+  ];
+
+  // Try each strategy
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      const extracted = strategies[i]();
+      if (extracted) {
+        console.log(`Strategy ${i + 1} extracted:`, extracted.substring(0, 200) + '...');
+        const parsed = JSON.parse(extracted);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.log(`Strategy ${i + 1} failed:`, error.message);
+    }
+  }
+  
+  throw new Error('Could not extract valid JSON from response');
+};
+
+// Enhanced fallback strategy generator
+const createComprehensiveFallback = (productInfo: any) => {
+  console.log('Creating comprehensive fallback strategy');
+  
+  const productName = productInfo.productName || 'our product';
+  const coreProblem = productInfo.coreProblem || 'key business challenges';
+  const customerChallenges = productInfo.customerChallenges || 'operational challenges';
+  const productSolution = productInfo.productSolution || 'address these pain points';
+  const differentiators = productInfo.differentiators || 'our unique approach';
+  const successStories = productInfo.successStories || 'proven track record with similar companies';
+  const keyFeatures = productInfo.keyFeatures || [];
+  const idealCustomer = productInfo.idealCustomer || 'companies looking to improve efficiency';
+  const objections = productInfo.objections || 'comprehensive support and proven ROI';
+
+  return {
+    coldCallStarters: [
+      `Hi [Name], I hope I'm catching you at a good time. I noticed your company might be facing challenges with ${customerChallenges}. Do you have 30 seconds for me to explain how we've helped similar companies?`,
+      `Good morning [Name], I'm calling because we've been working with companies like yours to solve ${coreProblem}. Would you be open to a brief conversation about this?`
+    ],
+    talkTracks: [
+      `Hi [Name], I understand that ${customerChallenges} are significant challenges for companies like yours. ${productName} is specifically designed to ${productSolution}. ${differentiators ? 'What sets us apart is ' + differentiators : 'We have a unique approach that'} has helped companies achieve measurable results. Would you be interested in learning more?`,
+      `${productName} solves ${coreProblem} for companies like yours. ${successStories} after implementation. Given your role and company focus, I believe there could be a strong fit. Can we schedule a brief call to explore this further?`
+    ],
+    talkingPoints: [
+      `${productName} directly addresses ${coreProblem}`,
+      `Key features include: ${keyFeatures.length > 0 ? keyFeatures.join(', ') : 'comprehensive solutions tailored to your needs'}`,
+      `What differentiates us: ${differentiators}`,
+      `Success stories: ${successStories}`,
+      `Ideal for: ${idealCustomer}`,
+      `Addresses common objections: ${objections}`
+    ]
+  };
+};
+
 serve(async (req) => {
   console.log(`Generate pitch strategy function called with method: ${req.method}`);
   
@@ -44,6 +149,46 @@ serve(async (req) => {
 
     console.log('Calling OpenAI API for pitch strategy generation...');
     
+    // Enhanced system prompt with stronger JSON instructions
+    const enhancedSystemPrompt = systemPrompt || `You are an expert sales strategist. Based on the provided product and customer information, generate a personalized pitch strategy with cold call starters, talk tracks and key talking points.
+
+CRITICAL INSTRUCTIONS - READ CAREFULLY:
+1. You MUST return ONLY a valid JSON object
+2. NO markdown formatting, NO code blocks, NO explanations outside JSON
+3. NO text before or after the JSON object
+4. Start your response directly with { and end with }
+
+Return EXACTLY this JSON structure:
+
+{
+  "coldCallStarters": ["Starter 1", "Starter 2"],
+  "talkTracks": ["Talk track 1 text", "Talk track 2 text"],
+  "talkingPoints": ["Point 1", "Point 2", "Point 3", "Point 4", "Point 5", "Point 6"]
+}
+
+Guidelines for cold call starters:
+- Provide 2 sample opening lines for cold calls
+- Use proven frameworks like Pattern Interrupt or Upfront Contract
+- Keep natural, brief, and engaging
+- Goal: earn attention and create conversation space
+
+Guidelines for talk tracks:
+- Create 2 personalized opening pitch talk tracks
+- Use actual product name, core problem, and differentiators
+- Reference ideal customer profile and challenges
+- Include specific metrics or success stories if available
+- Make conversational and engaging
+- Each should be 3-4 sentences long
+
+Guidelines for talking points:
+- Create 6 key talking points based on product information
+- Include specific benefits, features, and differentiators
+- Reference actual success metrics if provided
+- Focus on solving customer's specific challenges
+- Make concise and impactful
+
+REMEMBER: Return ONLY the JSON object, nothing else.`;
+
     // Use OpenAI to generate personalized pitch strategy with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
@@ -60,42 +205,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: systemPrompt || `You are an expert sales strategist. Based on the provided product and customer information, generate a personalized pitch strategy with cold call starters, talk tracks and key talking points.
-
-CRITICAL: You MUST return ONLY a valid JSON object with no additional text, markdown formatting, explanations, or code blocks. Do not use markdown formatting, headers, or any other text outside the JSON structure.
-
-Return exactly this JSON format:
-
-{ 
-  "coldCallStarters": ["Starter 1", "Starter 2"],
-  "talkTracks": ["Talk track 1 text", "Talk track 2 text"],
-  "talkingPoints": ["Point 1", "Point 2", "Point 3", "Point 4", "Point 5", "Point 6"]
-}
-
-Guidelines for cold call starters:
-- Provide 2 sample opening lines that a rep can use to kick off a cold call.
-- Use proven frameworks like Pattern Interrupt, Upfront Contract, or Pain Probes.
-- Keep it natural, brief, and engaging — don't sound overly scripted.
-- Goal: earn attention and create space for conversation.
-
-Example formats:
-- Pattern Interrupt: "Hi [Name] — did I catch you at a decent time?"
-- Upfront Contract: "If I can take 30 seconds to explain why I'm calling, you can decide if it makes sense to continue — fair enough?"
-
-Guidelines for talk tracks:
-- Create 2 personalized opening pitch talk tracks
-- Use the actual product name, core problem, and differentiators
-- Reference the ideal customer profile and their challenges
-- Include specific metrics or success stories if available
-- Make them conversational and engaging
-- Each should be 3-4 sentences long
-
-Guidelines for talking points:
-- Create 6 key talking points based on the product information
-- Include specific benefits, features, and differentiators
-- Reference actual success metrics if provided
-- Focus on solving the customer's specific challenges
-- Make them concise and impactful`
+            content: enhancedSystemPrompt
           },
           {
             role: 'user',
@@ -103,7 +213,7 @@ Guidelines for talking points:
 
 Product Name: ${productInfo.productName}
 Core Problem: ${productInfo.coreProblem}
-Key Features: ${productInfo.keyFeatures.join(', ')}
+Key Features: ${productInfo.keyFeatures?.join(', ') || 'Not specified'}
 Differentiators: ${productInfo.differentiators}
 Success Stories: ${productInfo.successStories}
 Ideal Customer: ${productInfo.idealCustomer}
@@ -124,96 +234,54 @@ Create compelling talk tracks that reference these specific details and talking 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', response.status, errorText);
-      return new Response(JSON.stringify({ 
-        error: `OpenAI API error: ${response.status} - ${errorText}` 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const strategyText = data.choices[0].message.content;
     
-    console.log('Raw OpenAI response:', strategyText);
+    console.log('Raw OpenAI response:', strategyText.substring(0, 500) + '...');
     
     try {
-      // Clean the response to extract JSON if it's wrapped in markdown or has extra text
-      let cleanedResponse = strategyText.trim();
-      
-      // Remove markdown code blocks if present
-      if (cleanedResponse.startsWith('```json')) {
-        cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (cleanedResponse.startsWith('```')) {
-        cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
-      }
-      
-      // Remove any markdown headers or formatting
-      cleanedResponse = cleanedResponse.replace(/^#+\s.*$/gm, '');
-      cleanedResponse = cleanedResponse.replace(/^\*\*.*\*\*$/gm, '');
-      cleanedResponse = cleanedResponse.replace(/^-\s/gm, '');
-      
-      // Try to find JSON object in the response
-      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanedResponse = jsonMatch[0];
-      }
-      
-      console.log('Cleaned response:', cleanedResponse);
-      
-      const strategy = JSON.parse(cleanedResponse);
+      // Try enhanced JSON extraction
+      const strategy = extractJSONFromResponse(strategyText);
       
       // Validate the expected structure
       if (!strategy.coldCallStarters || !strategy.talkTracks || !strategy.talkingPoints) {
-        console.error('Invalid strategy structure:', strategy);
-        throw new Error('Response missing required fields: coldCallStarters, talkTracks, or talkingPoints');
+        console.error('Invalid strategy structure - missing required fields:', {
+          hasColdCallStarters: !!strategy.coldCallStarters,
+          hasTalkTracks: !!strategy.talkTracks,
+          hasTalkingPoints: !!strategy.talkingPoints
+        });
+        throw new Error('Response missing required fields');
       }
       
-      console.log('Pitch strategy generated successfully');
+      // Validate arrays are not empty
+      if (!Array.isArray(strategy.coldCallStarters) || strategy.coldCallStarters.length === 0 ||
+          !Array.isArray(strategy.talkTracks) || strategy.talkTracks.length === 0 ||
+          !Array.isArray(strategy.talkingPoints) || strategy.talkingPoints.length === 0) {
+        console.error('Invalid strategy structure - empty arrays');
+        throw new Error('Strategy contains empty arrays');
+      }
+      
+      console.log('Pitch strategy generated successfully with all components');
       
       return new Response(JSON.stringify(strategy), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response as JSON:', parseError);
-      console.error('Original response:', strategyText);
       
-      // Fallback: try to create a valid response from the text
-      try {
-        const fallbackStrategy = {
-          coldCallStarters: [
-            "Hi [Name], I hope I'm catching you at a good time. I noticed your company might be facing challenges with " + (productInfo.customerChallenges || "operational efficiency") + ". Do you have 30 seconds for me to explain how we've helped similar companies?",
-            "Good morning [Name], I'm calling because we've been working with companies like yours to solve " + (productInfo.coreProblem || "common business challenges") + ". Would you be open to a brief conversation about this?"
-          ],
-          talkTracks: [
-            `Hi [Name], I understand that ${productInfo.customerChallenges || 'many companies in your industry'} face significant challenges. ${productInfo.productName} is specifically designed to ${productInfo.productSolution || 'address these exact pain points'}. ${productInfo.differentiators ? 'What sets us apart is ' + productInfo.differentiators : 'We have a unique approach that'} has helped companies achieve measurable results. Would you be interested in learning more?`,
-            `${productInfo.productName} solves ${productInfo.coreProblem || 'critical business challenges'} for companies like yours. ${productInfo.successStories || 'Our clients have seen significant improvements'} after implementation. Given your role and company focus, I believe there could be a strong fit. Can we schedule a brief call to explore this further?`
-          ],
-          talkingPoints: [
-            `${productInfo.productName} directly addresses ${productInfo.coreProblem || 'key business challenges'}`,
-            `Key features include: ${productInfo.keyFeatures?.join(', ') || 'comprehensive solutions tailored to your needs'}`,
-            `What differentiates us: ${productInfo.differentiators || 'our unique approach and proven results'}`,
-            `Success stories: ${productInfo.successStories || 'proven track record with similar companies'}`,
-            `Ideal for: ${productInfo.idealCustomer || 'companies looking to improve efficiency and results'}`,
-            `Addresses common objections: ${productInfo.objections || 'comprehensive support and proven ROI'}`
-          ]
-        };
-        
-        console.log('Created fallback strategy');
-        return new Response(JSON.stringify(fallbackStrategy), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      } catch (fallbackError) {
-        console.error('Fallback strategy creation failed:', fallbackError);
-        return new Response(JSON.stringify({ 
-          error: 'Invalid response format from AI strategy generation',
-          details: parseError.message,
-          originalResponse: strategyText.substring(0, 500) + '...'
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', parseError.message);
+      console.error('Original response length:', strategyText.length);
+      
+      // Create comprehensive fallback strategy
+      console.log('Creating comprehensive fallback strategy...');
+      const fallbackStrategy = createComprehensiveFallback(productInfo);
+      
+      console.log('Comprehensive fallback strategy created successfully');
+      return new Response(JSON.stringify(fallbackStrategy), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
   } catch (error) {
@@ -227,6 +295,20 @@ Create compelling talk tracks that reference these specific details and talking 
         status: 408,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+    
+    // Final fallback for any other errors
+    try {
+      const { productInfo } = await req.json();
+      if (productInfo) {
+        console.log('Creating emergency fallback strategy...');
+        const emergencyFallback = createComprehensiveFallback(productInfo);
+        return new Response(JSON.stringify(emergencyFallback), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } catch (fallbackError) {
+      console.error('Emergency fallback failed:', fallbackError);
     }
     
     return new Response(JSON.stringify({ 

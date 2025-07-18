@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 interface PitchStrategy {
+  coldCallStarters?: string[];
   talkTracks: string[];
   talkingPoints: string[];
 }
@@ -33,6 +34,31 @@ export function PitchDisplay({ strategy, onDownload }: PitchDisplayProps) {
         </div>
         
         <div className="space-y-6">
+          {/* Cold Call Starters */}
+          {strategy.coldCallStarters && strategy.coldCallStarters.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-lg mb-3 text-green-700">Cold Call Starters</h4>
+              {strategy.coldCallStarters.map((starter, index) => (
+                <Card key={index} className="p-4 mb-3 bg-white border-green-200">
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge variant="outline" className="text-green-600 border-green-300">
+                      Starter {index + 1}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(starter, `Cold Call Starter ${index + 1}`)}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed">{starter}</p>
+                </Card>
+              ))}
+            </div>
+          )}
+          
+          {/* Talk Tracks */}
           <div>
             <h4 className="font-semibold text-lg mb-3 text-blue-700">Sample Talk Tracks</h4>
             {strategy.talkTracks.map((track, index) => (
@@ -54,6 +80,7 @@ export function PitchDisplay({ strategy, onDownload }: PitchDisplayProps) {
             ))}
           </div>
           
+          {/* Talking Points */}
           <div>
             <h4 className="font-semibold text-lg mb-3 text-purple-700">Key Talking Points</h4>
             <Card className="p-4 bg-white">
