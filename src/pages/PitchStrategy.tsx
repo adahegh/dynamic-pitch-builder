@@ -106,6 +106,20 @@ ${emailCadence?.map((email, index) => `${email.day} - ${email.step} (${email.typ
 Generated on: ${new Date().toLocaleDateString()}`;
   };
 
+  const formatIdealCustomer = (customer: any) => {
+    if (typeof customer === 'string') {
+      return customer;
+    }
+    if (typeof customer === 'object' && customer !== null) {
+      const parts = [];
+      if (customer.title) parts.push(customer.title);
+      if (customer.companyType) parts.push(`at ${customer.companyType}`);
+      if (customer.industry) parts.push(`in ${customer.industry}`);
+      return parts.join(' ');
+    }
+    return 'Not specified';
+  };
+
   if (!pitchData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -177,7 +191,7 @@ Generated on: ${new Date().toLocaleDateString()}`;
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-700 mb-2">Ideal Customer</h4>
-                  <p className="text-gray-600">{productInfo.idealCustomer}</p>
+                  <p className="text-gray-600">{formatIdealCustomer(productInfo.idealCustomer)}</p>
                 </div>
               </div>
             </CardContent>
