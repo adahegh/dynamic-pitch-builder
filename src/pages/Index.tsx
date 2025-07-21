@@ -1,5 +1,5 @@
 
-import { PitchBuilder } from "@/components/PitchBuilder";
+import PitchBuilder from "@/components/PitchBuilder";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";

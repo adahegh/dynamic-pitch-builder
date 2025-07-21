@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Input, Textarea, Button, Badge } from "@nextui-org/react";
-import { toast } from 'react-hot-toast';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { useRouter } from 'next/router';
-import { systemPrompts } from '@/utils/constants';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-interface ProductInfo {
+export interface ProductInfo {
   productName: string;
   coreProblem: string;
   keyFeatures: string[];
@@ -17,16 +20,20 @@ interface ProductInfo {
   objections: string;
 }
 
-interface PitchStrategy {
+export interface PitchStrategy {
   talkTracks: string[];
   talkingPoints: string[];
+  coldCallStarters?: string[];
 }
 
-interface Objection {
+export interface Objection {
   objection: string;
   response: string;
   proofPoint: string;
 }
+
+export type ObjectionHandling = Objection;
+export type EmailCadenceStep = any; // Add proper interface if needed
 
 const PitchBuilder: React.FC = () => {
   const [productInfo, setProductInfo] = useState<ProductInfo | null>(null);
@@ -34,8 +41,7 @@ const PitchBuilder: React.FC = () => {
   const [objectionHandling, setObjectionHandling] = useState<Objection[] | null>(null);
   const [isGeneratingPitch, setIsGeneratingPitch] = useState(false);
   const [isGeneratingObjections, setIsGeneratingObjections] = useState(false);
-  const supabase = useSupabaseClient();
-  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Load data from local storage on component mount
@@ -107,17 +113,18 @@ const PitchBuilder: React.FC = () => {
 
   const generatePitch = async () => {
     if (!productInfo) {
-      toast.error("Please fill out the product information first");
+      toast({
+        title: "Error",
+        description: "Please fill out the product information first",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsGeneratingPitch(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-pitch', {
-        body: {
-          productInfo,
-          systemPrompt: systemPrompts.pitchStrategy
-        }
+      const { data, error } = await supabase.functions.invoke('generate-pitch-strategy', {
+        body: { productInfo }
       });
 
       if (error) {
@@ -126,10 +133,17 @@ const PitchBuilder: React.FC = () => {
 
       console.log('Generated pitch strategy:', data);
       setPitchStrategy(data);
-      toast.success("Pitch strategy generated successfully!");
+      toast({
+        title: "Success",
+        description: "Pitch strategy generated successfully!",
+      });
     } catch (error: any) {
       console.error('Error generating pitch strategy:', error);
-      toast.error(error.message);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsGeneratingPitch(false);
     }
@@ -137,7 +151,11 @@ const PitchBuilder: React.FC = () => {
 
   const generateObjectionHandling = async (retryCount = 0) => {
     if (!productInfo || !pitchStrategy) {
-      toast.error("Please generate a pitch strategy first");
+      toast({
+        title: "Error", 
+        description: "Please generate a pitch strategy first",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -148,8 +166,7 @@ const PitchBuilder: React.FC = () => {
       const { data, error } = await supabase.functions.invoke('generate-objection-handling', {
         body: {
           productInfo,
-          pitchStrategy,
-          systemPrompt: systemPrompts.objectionHandling
+          pitchStrategy
         }
       });
 
@@ -164,7 +181,10 @@ const PitchBuilder: React.FC = () => {
 
       console.log('Generated objection handling:', data);
       setObjectionHandling(data.objectionHandling);
-      toast.success("Objection handling tactics generated successfully!");
+      toast({
+        title: "Success",
+        description: "Objection handling tactics generated successfully!",
+      });
       
     } catch (error) {
       console.error('Error generating objection handling:', error);
@@ -172,7 +192,10 @@ const PitchBuilder: React.FC = () => {
       // Retry logic - try up to 2 times
       if (retryCount < 2) {
         console.log(`Retrying objection handling generation (attempt ${retryCount + 1})...`);
-        toast.info(`Retrying objection handling generation...`);
+        toast({
+          title: "Retrying",
+          description: "Retrying objection handling generation...",
+        });
         setTimeout(() => generateObjectionHandling(retryCount + 1), 1000);
         return;
       }
@@ -187,7 +210,11 @@ const PitchBuilder: React.FC = () => {
         errorMessage = "Network error occurred. Please check your connection and try again.";
       }
       
-      toast.error(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsGeneratingObjections(false);
     }
@@ -195,168 +222,186 @@ const PitchBuilder: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-semibold mb-6 text-center text-purple-800">Pitch Builder</h1>
+      <h1 className="text-3xl font-semibold mb-6 text-center">Pitch Builder</h1>
 
       {/* Product Information Section */}
       <section className="mb-8">
-        <h3 className="font-semibold text-xl mb-3 text-purple-700">Product Information</h3>
-        <Card className="p-4 mb-4 bg-white">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Input
-                type="text"
-                label="Product Name"
-                placeholder="Enter product name"
-                value={productInfo?.productName || ''}
-                onChange={(e) => handleProductInfoChange(e, 'productName')}
-              />
+        <h3 className="font-semibold text-xl mb-3">Product Information</h3>
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="productName">Product Name</Label>
+                <Input
+                  id="productName"
+                  type="text"
+                  placeholder="Enter product name"
+                  value={productInfo?.productName || ''}
+                  onChange={(e) => handleProductInfoChange(e, 'productName')}
+                />
+              </div>
+              <div>
+                <Label htmlFor="coreProblem">Core Problem</Label>
+                <Input
+                  id="coreProblem"
+                  type="text"
+                  placeholder="Enter core problem"
+                  value={productInfo?.coreProblem || ''}
+                  onChange={(e) => handleProductInfoChange(e, 'coreProblem')}
+                />
+              </div>
+              <div>
+                <Label htmlFor="keyFeatures">Key Features (comma-separated)</Label>
+                <Input
+                  id="keyFeatures"
+                  type="text"
+                  placeholder="Enter key features"
+                  value={productInfo?.keyFeatures?.join(', ') || ''}
+                  onChange={handleKeyFeaturesChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="differentiators">Differentiators</Label>
+                <Input
+                  id="differentiators"
+                  type="text"
+                  placeholder="Enter differentiators"
+                  value={productInfo?.differentiators || ''}
+                  onChange={(e) => handleProductInfoChange(e, 'differentiators')}
+                />
+              </div>
+              <div>
+                <Label htmlFor="successStories">Success Stories</Label>
+                <Textarea
+                  id="successStories"
+                  placeholder="Enter success stories"
+                  value={productInfo?.successStories || ''}
+                  onChange={(e) => handleProductInfoChange(e, 'successStories')}
+                />
+              </div>
+              <div>
+                <Label htmlFor="idealCustomer">Ideal Customer</Label>
+                <Input
+                  id="idealCustomer"
+                  type="text"
+                  placeholder="Enter ideal customer"
+                  value={productInfo?.idealCustomer || ''}
+                  onChange={(e) => handleProductInfoChange(e, 'idealCustomer')}
+                />
+              </div>
+              <div>
+                <Label htmlFor="customerChallenges">Customer Challenges</Label>
+                <Textarea
+                  id="customerChallenges"
+                  placeholder="Enter customer challenges"
+                  value={productInfo?.customerChallenges || ''}
+                  onChange={(e) => handleProductInfoChange(e, 'customerChallenges')}
+                />
+              </div>
+              <div>
+                <Label htmlFor="productSolution">Product Solution</Label>
+                <Textarea
+                  id="productSolution"
+                  placeholder="Enter product solution"
+                  value={productInfo?.productSolution || ''}
+                  onChange={(e) => handleProductInfoChange(e, 'productSolution')}
+                />
+              </div>
+              <div>
+                <Label htmlFor="objections">Known Objections</Label>
+                <Textarea
+                  id="objections"
+                  placeholder="Enter known objections"
+                  value={productInfo?.objections || ''}
+                  onChange={(e) => handleProductInfoChange(e, 'objections')}
+                />
+              </div>
             </div>
-            <div>
-              <Input
-                type="text"
-                label="Core Problem"
-                placeholder="Enter core problem"
-                value={productInfo?.coreProblem || ''}
-                onChange={(e) => handleProductInfoChange(e, 'coreProblem')}
-              />
-            </div>
-            <div>
-              <Input
-                type="text"
-                label="Key Features (comma-separated)"
-                placeholder="Enter key features"
-                value={productInfo?.keyFeatures?.join(', ') || ''}
-                onChange={handleKeyFeaturesChange}
-              />
-            </div>
-            <div>
-              <Input
-                type="text"
-                label="Differentiators"
-                placeholder="Enter differentiators"
-                value={productInfo?.differentiators || ''}
-                onChange={(e) => handleProductInfoChange(e, 'differentiators')}
-              />
-            </div>
-            <div>
-              <Textarea
-                label="Success Stories"
-                placeholder="Enter success stories"
-                value={productInfo?.successStories || ''}
-                onChange={(e) => handleProductInfoChange(e, 'successStories')}
-              />
-            </div>
-            <div>
-              <Input
-                type="text"
-                label="Ideal Customer"
-                placeholder="Enter ideal customer"
-                value={productInfo?.idealCustomer || ''}
-                onChange={(e) => handleProductInfoChange(e, 'idealCustomer')}
-              />
-            </div>
-            <div>
-              <Textarea
-                label="Customer Challenges"
-                placeholder="Enter customer challenges"
-                value={productInfo?.customerChallenges || ''}
-                onChange={(e) => handleProductInfoChange(e, 'customerChallenges')}
-              />
-            </div>
-            <div>
-              <Textarea
-                label="Product Solution"
-                placeholder="Enter product solution"
-                value={productInfo?.productSolution || ''}
-                onChange={(e) => handleProductInfoChange(e, 'productSolution')}
-              />
-            </div>
-            <div>
-              <Textarea
-                label="Known Objections"
-                placeholder="Enter known objections"
-                value={productInfo?.objections || ''}
-                onChange={(e) => handleProductInfoChange(e, 'objections')}
-              />
-            </div>
-          </div>
+          </CardContent>
         </Card>
       </section>
 
       {/* Pitch Strategy Section */}
       <section className="mb-8">
-        <h3 className="font-semibold text-xl mb-3 text-purple-700">Pitch Strategy</h3>
-        <Card className="p-4 mb-4 bg-white">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Input
-                type="text"
-                label="Talk Tracks (pipe-separated)"
-                placeholder="Enter talk tracks"
-                value={pitchStrategy?.talkTracks?.join(' | ') || ''}
-                onChange={handleTalkTracksChange}
-              />
+        <h3 className="font-semibold text-xl mb-3">Pitch Strategy</h3>
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="talkTracks">Talk Tracks (pipe-separated)</Label>
+                <Input
+                  id="talkTracks"
+                  type="text"
+                  placeholder="Enter talk tracks"
+                  value={pitchStrategy?.talkTracks?.join(' | ') || ''}
+                  onChange={handleTalkTracksChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="talkingPoints">Key Talking Points (pipe-separated)</Label>
+                <Input
+                  id="talkingPoints"
+                  type="text"
+                  placeholder="Enter key talking points"
+                  value={pitchStrategy?.talkingPoints?.join(' | ') || ''}
+                  onChange={handleTalkingPointsChange}
+                />
+              </div>
             </div>
-            <div>
-              <Input
-                type="text"
-                label="Key Talking Points (pipe-separated)"
-                placeholder="Enter key talking points"
-                value={pitchStrategy?.talkingPoints?.join(' | ') || ''}
-                onChange={handleTalkingPointsChange}
-              />
-            </div>
-          </div>
+          </CardContent>
         </Card>
         <Button
-          color="primary"
-          isLoading={isGeneratingPitch}
+          disabled={isGeneratingPitch}
           onClick={generatePitch}
           className="mt-3"
         >
-          Generate Pitch Strategy
+          {isGeneratingPitch ? "Generating..." : "Generate Pitch Strategy"}
         </Button>
       </section>
 
       <div className="mb-8">
         <Button
-          color="secondary"
-          isLoading={isGeneratingObjections}
-          onClick={generateObjectionHandling}
+          variant="secondary"
+          disabled={isGeneratingObjections}
+          onClick={() => generateObjectionHandling()}
           className="mt-3"
         >
-          Generate Objection Handling Tactics
+          {isGeneratingObjections ? "Generating..." : "Generate Objection Handling Tactics"}
         </Button>
       </div>
 
-                  {/* Objection Handling Section */}
-                  {objectionHandling && objectionHandling.length > 0 && (
+      {/* Objection Handling Section */}
+      {objectionHandling && objectionHandling.length > 0 && (
+        <section className="mb-8">
+          <h3 className="font-semibold text-xl mb-3">Objection Handling Tactics</h3>
+          {objectionHandling.map((objection, index) => (
+            <Card key={index} className="mb-4 border-l-4 border-l-primary">
+              <CardContent className="p-4">
+                <div className="mb-3">
+                  <Badge variant="outline" className="mb-2">
+                    Objection {index + 1}
+                  </Badge>
+                  <h5 className="font-semibold mb-2">"{objection.objection}"</h5>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm font-medium">Response:</span>
+                    <p className="mt-1 leading-relaxed">{objection.response}</p>
+                  </div>
+                  
+                  {objection.proofPoint && (
                     <div>
-                      <h4 className="font-semibold text-lg mb-3 text-purple-700">Objection Handling Tactics</h4>
-                      {objectionHandling.map((objection, index) => (
-                        <Card key={index} className="p-4 mb-4 bg-white border-l-4 border-l-purple-500">
-                          <div className="mb-3">
-                            <Badge variant="outline" className="text-purple-600 border-purple-300 mb-2">
-                              Objection {index + 1}
-                            </Badge>
-                            <h5 className="font-semibold text-gray-800 mb-2">"{objection.objection}"</h5>
-                          </div>
-                          
-                          <div className="space-y-3">
-                            <div>
-                              <span className="text-sm font-medium text-gray-600">Response:</span>
-                              <p className="text-gray-700 mt-1 leading-relaxed">{objection.response}</p>
-                            </div>
-                            
-                            <div>
-                              <span className="text-sm font-medium text-gray-600">Proof Point:</span>
-                              <p className="text-gray-700 mt-1 leading-relaxed italic">{objection.proofPoint}</p>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
+                      <span className="text-sm font-medium">Proof Point:</span>
+                      <p className="mt-1 leading-relaxed italic">{objection.proofPoint}</p>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      )}
 
     </div>
   );
